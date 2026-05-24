@@ -19,7 +19,7 @@ export default defineConfig({
         skipWaiting: true,
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/app\.getperga\.me\/config\.json$/,
+            urlPattern: /\/config\.json$/,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'config-cache',

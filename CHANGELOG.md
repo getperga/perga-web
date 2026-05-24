@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.10] - 2026-05-24
+
+### Fixed
+
+- Fixed PWA service worker configuration bug
+
 ## [1.1.9] - 2026-05-10
 
 ### Fixed
