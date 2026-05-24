@@ -6,7 +6,7 @@ import '@/index.css';
 import { initConfig } from '@/config';
 import { initTheme } from '@common/utils/theme';
 
-registerSW({ immediate: true });
+registerSW();
 
 initConfig().then(async () => {
   initTheme();
