@@ -1,13 +1,13 @@
 # Perga Web
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Build](https://github.com/dbtiunov/perga-web/actions/workflows/ci.yml/badge.svg)
+![Build](https://github.com/getperga/perga-web/actions/workflows/ci.yml/badge.svg)
 
-Personal organizer that helps you plan and organize your days and months efficiently.
+A personal workspace for your notes, plans, and ideas.
 
 ## Overview
 
-**[Perga API](https://github.com/dbtiunov/perga-api)** is the core of the product.  
+**[Perga API](https://github.com/getperga/perga-api)** is the core of the product.  
 **Perga Web** is a standalone **browser client** that connects to the backend to provide a user-friendly web interface.
 
 ## Screenshots
