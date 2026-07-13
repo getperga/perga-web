@@ -5,6 +5,8 @@ export interface UserDTO {
   email: string;
   week_start_day: WeekStartDayDTO;
   merge_weekends: boolean;
+  has_password: boolean;
+  google_id: string | null;
 }
 
 export interface UserUpdateDTO {
@@ -15,7 +17,7 @@ export interface UserUpdateDTO {
 }
 
 export interface UpdatePasswordDTO {
-  current_password: string;
+  current_password?: string;
   new_password: string;
 }
 
