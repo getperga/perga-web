@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
 import { getConfig } from '@/config';
 import { useAuth } from '@common/contexts/auth/useAuth';
-import { initializeGoogleCodeClient, requestGoogleCode } from '@common/utils/googleAuth';
+import { useGoogleAuthInit, requestGoogleCode } from '@common/utils/googleAuth';
 
 export const Signin: React.FC = () => {
   const { IS_SIGNUP_DISABLED, GOOGLE_CLIENT_ID } = getConfig();
@@ -16,45 +16,26 @@ export const Signin: React.FC = () => {
   const { signin, googleSignin } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const init = () => {
-      if (window.google && GOOGLE_CLIENT_ID) {
-        return initializeGoogleCodeClient({
-          callback: async (response) => {
-            if (response.error) {
-              setError('Google Sign In failed');
-              console.error(response.error);
-              return;
-            }
-
-            setError('');
-            setIsLoading(true);
-
-            try {
-              await googleSignin({ code: response.code });
-              navigate('/planner/');
-            } catch (err) {
-              setError('Google Sign In failed');
-              console.error(err);
-            } finally {
-              setIsLoading(false);
-            }
-          },
-        });
-      }
-      return false;
-    };
-
-    if (!init()) {
-      const interval = setInterval(() => {
-        if (init()) {
-          clearInterval(interval);
-        }
-      }, 100);
-      return () => clearInterval(interval);
+  useGoogleAuthInit(async (response) => {
+    if (response.error) {
+      setError('Google Sign In failed');
+      console.error(response.error);
+      return;
     }
-  }, [GOOGLE_CLIENT_ID, googleSignin, navigate]);
 
+    setError('');
+    setIsLoading(true);
+
+    try {
+      await googleSignin({ code: response.code });
+      navigate('/planner/');
+    } catch (err) {
+      setError('Google Sign In failed');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
