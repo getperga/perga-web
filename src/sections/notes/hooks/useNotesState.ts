@@ -26,7 +26,10 @@ import { NotesTrashItemIds } from '@notes/types.ts';
 export const useNotesState = () => {
   const [rootFolder, setRootFolder] = useState<NotesFolderResponseDTO | null>(null);
   const [trashFolder, setTrashFolder] = useState<NotesFolderResponseDTO | null>(null);
-  const [trashItemIds, setTrashItemIds] = useState<NotesTrashItemIds>({ folderIds: [], noteIds: [] });
+  const [trashItemIds, setTrashItemIds] = useState<NotesTrashItemIds>({
+    folderIds: [],
+    noteIds: [],
+  });
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(() => {
     const saved = localStorage.getItem(StorageKeys.NotesSelectedNoteId);
     return saved ? parseInt(saved, 10) : null;

@@ -27,30 +27,28 @@ export const SettingsProfile: React.FC = () => {
   const [hasPasswordChanges, setHasPasswordChanges] = useState(false);
   const [isAuthenticatingGoogle, setIsAuthenticatingGoogle] = useState(false);
   const [isGoogleVerified, setIsGoogleVerified] = useState(
-    () => sessionStorage.getItem(GOOGLE_VERIFIED_SESSION_STORAGE_KEY) === 'true'
+    () => sessionStorage.getItem(GOOGLE_VERIFIED_SESSION_STORAGE_KEY) === 'true',
   );
 
-  useGoogleAuthInit(
-    async (response) => {
-      if (response.code) {
-        try {
-          setIsAuthenticatingGoogle(true);
-          await googleSignin({ code: response.code });
-          sessionStorage.setItem(GOOGLE_VERIFIED_SESSION_STORAGE_KEY, 'true');
-          setIsGoogleVerified(true);
-          showToast('Google session verified', 'success');
-        } catch (error) {
-          showError('Google authentication failed');
-          console.error(error);
-        } finally {
-          setIsAuthenticatingGoogle(false);
-        }
-      } else if (response.error) {
+  useGoogleAuthInit(async (response) => {
+    if (response.code) {
+      try {
+        setIsAuthenticatingGoogle(true);
+        await googleSignin({ code: response.code });
+        sessionStorage.setItem(GOOGLE_VERIFIED_SESSION_STORAGE_KEY, 'true');
+        setIsGoogleVerified(true);
+        showToast('Google session verified', 'success');
+      } catch (error) {
         showError('Google authentication failed');
-        console.error(response.error);
+        console.error(error);
+      } finally {
+        setIsAuthenticatingGoogle(false);
       }
+    } else if (response.error) {
+      showError('Google authentication failed');
+      console.error(response.error);
     }
-  );
+  });
 
   // Initialize form with user data when available
   useEffect(() => {
@@ -244,7 +242,10 @@ export const SettingsProfile: React.FC = () => {
               <>
                 {user?.has_password && (
                   <div className="mb-6">
-                    <label className="text-text-main text-sm font-medium mb-1" htmlFor="currentPassword">
+                    <label
+                      className="text-text-main text-sm font-medium mb-1"
+                      htmlFor="currentPassword"
+                    >
                       Current Password
                     </label>
                     <input

@@ -1,6 +1,13 @@
 import { createContext } from 'react';
 
-import { UserDTO, UserSigninDTO, UserSignupDTO, UserUpdateDTO, UpdatePasswordDTO, GoogleSigninDTO } from '@api/auth';
+import {
+  UserDTO,
+  UserSigninDTO,
+  UserSignupDTO,
+  UserUpdateDTO,
+  UpdatePasswordDTO,
+  GoogleSigninDTO,
+} from '@api/auth';
 
 export interface AuthContextType {
   isAuthenticated: boolean;

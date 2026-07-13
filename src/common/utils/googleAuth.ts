@@ -8,7 +8,7 @@ type GoogleCodeClient = {
 
 interface GoogleAuthResponse {
   code: string;
-  error?: string
+  error?: string;
 }
 
 interface GoogleInitializeOptions {
