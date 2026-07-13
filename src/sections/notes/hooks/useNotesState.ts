@@ -32,6 +32,7 @@ export const useNotesState = () => {
     return saved ? parseInt(saved, 10) : null;
   });
   const [selectedNote, setSelectedNote] = useState<NoteDTO | null>(null);
+  const [focusTrigger, setFocusTrigger] = useState(0);
 
   // use ref to avoid infinite loop when updating selectedNote in handleUpdateNote
   const selectedNoteRef = useRef(selectedNote);
@@ -304,6 +305,11 @@ export const useNotesState = () => {
     };
   }, [fetchFolders]);
 
+  const focusEditor = useCallback(() => {
+    // change trigger number to focus on every note title click
+    setFocusTrigger((prev) => prev + 1);
+  }, []);
+
   return {
     rootFolder,
     trashFolder,
@@ -320,6 +326,8 @@ export const useNotesState = () => {
     handleExportNotes,
     handleImportNotes,
     setSelectedNoteId,
+    focusEditor,
+    focusTrigger,
     selectedNote,
     selectedNoteId,
     trashItemIds,

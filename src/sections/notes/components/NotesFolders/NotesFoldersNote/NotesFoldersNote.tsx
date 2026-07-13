@@ -24,7 +24,7 @@ export const NotesFoldersNote = ({
   isSelected = false,
   className = '',
 }: FoldersNoteProps) => {
-  const { trashItemIds } = useNotes();
+  const { trashItemIds, focusEditor } = useNotes();
   const isInTrash = trashItemIds.noteIds.includes(note.id);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -40,6 +40,11 @@ export const NotesFoldersNote = ({
       inputRef.current.focus();
     }
   }, [isEditing]);
+
+  const handleSelect = () => {
+    onSelect(note.id);
+    focusEditor();
+  };
 
   const handleRenameSubmit = async () => {
     if (renameValue !== note.title) {
@@ -71,7 +76,7 @@ export const NotesFoldersNote = ({
     <div
       draggable
       onDragStart={onDragStart}
-      onClick={() => onSelect(note.id)}
+      onClick={handleSelect}
       className={`mb-1 flex items-center justify-between hover:bg-bg-hover rounded text-text-main cursor-pointer group ${isSelected ? 'bg-bg-hover' : ''} ${className}`}
     >
       {isEditing ? (

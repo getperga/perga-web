@@ -19,7 +19,7 @@ interface NotesEditorProps {
 }
 
 export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
-  const { trashItemIds } = useNotes();
+  const { trashItemIds, focusTrigger } = useNotes();
   const isInTrash = note?.id ? trashItemIds.noteIds.includes(note.id) : false;
 
   const [title, setTitle] = useState(note?.title || '');
@@ -80,6 +80,13 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
       }
     }
   }, [noteId, noteTitle, noteBody, editor, hasPendingUpdate]);
+
+  // focus editor when focusTrigger changes
+  useEffect(() => {
+    if (focusTrigger > 0 && editor) {
+      editor.commands.focus('start');
+    }
+  }, [focusTrigger, editor]);
 
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
