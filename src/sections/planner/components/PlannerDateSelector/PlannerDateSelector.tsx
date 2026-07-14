@@ -48,7 +48,12 @@ const PlannerDateSelector: React.FC<DateSelectorProps> = ({
   }, [selectedDate]);
 
   const handlePickDate = (date: Date) => {
-    onDateChange(date);
+    let newDate = date;
+    if (user?.merge_weekends && date.getDay() === 0) {
+      newDate = new Date(date);
+      newDate.setDate(date.getDate() - 1);
+    }
+    onDateChange(newDate);
   };
 
   const handlePrevClick = () => {
@@ -100,7 +105,18 @@ const PlannerDateSelector: React.FC<DateSelectorProps> = ({
             return (
               <button
                 key={date.toLocaleDateString()}
-                onClick={() => !isSameDay(date, selectedDate) && onDateChange(date)}
+                onClick={() => {
+                  let dateToSet = date;
+                  if (user?.merge_weekends && date.getDay() === 0) {
+                    // show saturday items as weekend items
+                    dateToSet = new Date(date);
+                    dateToSet.setDate(date.getDate() - 1);
+                  }
+
+                  if (!isSameDay(dateToSet, selectedDate)) {
+                    onDateChange(dateToSet);
+                  }
+                }}
                 className={`flex flex-col items-center justify-center h-12 w-10
                      ${selectedColor} hover:text-text-main transition-colors`}
                 aria-current={isSelected ? 'date' : undefined}

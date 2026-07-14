@@ -26,12 +26,16 @@ import { NotesTrashItemIds } from '@notes/types.ts';
 export const useNotesState = () => {
   const [rootFolder, setRootFolder] = useState<NotesFolderResponseDTO | null>(null);
   const [trashFolder, setTrashFolder] = useState<NotesFolderResponseDTO | null>(null);
-  const [trashItemIds, setTrashItemIds] = useState<NotesTrashItemIds>({ folderIds: [], noteIds: [] });
+  const [trashItemIds, setTrashItemIds] = useState<NotesTrashItemIds>({
+    folderIds: [],
+    noteIds: [],
+  });
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(() => {
     const saved = localStorage.getItem(StorageKeys.NotesSelectedNoteId);
     return saved ? parseInt(saved, 10) : null;
   });
   const [selectedNote, setSelectedNote] = useState<NoteDTO | null>(null);
+  const [focusTrigger, setFocusTrigger] = useState(0);
 
   // use ref to avoid infinite loop when updating selectedNote in handleUpdateNote
   const selectedNoteRef = useRef(selectedNote);
@@ -304,6 +308,11 @@ export const useNotesState = () => {
     };
   }, [fetchFolders]);
 
+  const focusEditor = useCallback(() => {
+    // change trigger number to focus on every note title click
+    setFocusTrigger((prev) => prev + 1);
+  }, []);
+
   return {
     rootFolder,
     trashFolder,
@@ -320,6 +329,8 @@ export const useNotesState = () => {
     handleExportNotes,
     handleImportNotes,
     setSelectedNoteId,
+    focusEditor,
+    focusTrigger,
     selectedNote,
     selectedNoteId,
     trashItemIds,

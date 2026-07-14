@@ -205,7 +205,7 @@ export const SettingsPlanner: React.FC = () => {
       <fieldset className="border border-gray-400 rounded p-8">
         <legend className="px-2 text-text-main">Agendas</legend>
 
-        <p className="text-sm text-text-main mb-10">
+        <p className="text-sm text-text-muted mb-10">
           Create and manage custom agendas to organize your tasks. A&nbsp;monthly agenda is created
           automatically for each month.
         </p>

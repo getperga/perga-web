@@ -6,12 +6,7 @@ import type {
   NotesExportTargetDTO,
   NotesImportResponseDTO,
 } from '@api/notes';
-import {
-  Dropdown,
-  DropdownItem,
-  DropdownSubmenu,
-  useDropdown,
-} from '@common/components/Dropdown';
+import { Dropdown, DropdownItem, DropdownSubmenu, useDropdown } from '@common/components/Dropdown';
 import { Icon } from '@common/components/Icon';
 import { useToast } from '@common/contexts/toast/useToast';
 import { StorageKeys } from '@common/utils/storage_keys';
@@ -44,7 +39,10 @@ interface FoldersItemProps {
 interface NotesImportDropdownItemProps {
   folderId: number;
   isImporting: boolean;
-  onImport: (event: React.ChangeEvent<HTMLInputElement>, closeDropdown?: () => void) => Promise<void>;
+  onImport: (
+    event: React.ChangeEvent<HTMLInputElement>,
+    closeDropdown?: () => void,
+  ) => Promise<void>;
 }
 
 const NotesImportDropdownItem = ({ isImporting, onImport }: NotesImportDropdownItemProps) => {

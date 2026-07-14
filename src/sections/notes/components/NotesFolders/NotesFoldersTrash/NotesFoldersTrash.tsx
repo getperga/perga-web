@@ -138,7 +138,9 @@ export const NotesFoldersTrash: React.FC<TrashProps> = ({
                   onClick={() => onSelectNote(note.id)}
                   className={`ml-4 mb-3 flex items-center p-2 hover:bg-bg-hover rounded text-text-main cursor-pointer ${note.id === selectedNoteId ? 'bg-bg-hover' : ''}`}
                 >
-                  <div className={`flex items-center flex-1 truncate ${trashItemIds.noteIds.includes(note.id) ? 'opacity-50' : ''}`}>
+                  <div
+                    className={`flex items-center flex-1 truncate ${trashItemIds.noteIds.includes(note.id) ? 'opacity-50' : ''}`}
+                  >
                     <Icon
                       name="note"
                       size="16"

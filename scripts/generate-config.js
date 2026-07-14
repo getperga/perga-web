@@ -11,7 +11,7 @@ const outputPath = path.resolve('public/config.json');
 const DEFAULTS = {
   API_BASE_URL: 'http://localhost:8080/api/v1',
   IS_SIGNUP_DISABLED: 'false',
-  GOOGLE_CLIENT_ID: null,
+  GOOGLE_CLIENT_ID: '',
 };
 
 function normalizeBooleanString(value) {

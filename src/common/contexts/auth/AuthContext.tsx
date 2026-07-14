@@ -36,6 +36,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       email: response.data.email,
       week_start_day: response.data.week_start_day,
       merge_weekends: response.data.merge_weekends,
+      has_password: response.data.has_password,
+      google_id: response.data.google_id,
     });
   }, []);
 
@@ -56,7 +58,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
     };
 
-    checkAuth();
+    void checkAuth();
   }, [handleFetchUser]);
 
   const handleSignin = async (credentials: UserSigninDTO) => {

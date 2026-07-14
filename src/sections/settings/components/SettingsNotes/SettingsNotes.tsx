@@ -51,7 +51,7 @@ export const SettingsNotes: React.FC = () => {
       <fieldset className="border border-border-main rounded p-8">
         <legend className="px-2">Export Notes</legend>
         <div className="flex flex-col space-y-4">
-          <p className="text-sm opacity-60">
+          <p className="text-sm text-text-muted">
             Export all your notes from all folders as a single archive.
           </p>
           <div className="flex space-x-2">
@@ -89,14 +89,14 @@ export const SettingsNotes: React.FC = () => {
       <fieldset className="border border-border-main rounded p-8 mt-8">
         <legend className="px-2">Import Notes</legend>
         <div className="flex flex-col space-y-4">
-          <p className="text-sm opacity-60">
+          <p className="text-sm text-text-muted">
             Import Markdown, HTML or TXT notes. You can select multiple files at once or use zip
             archive.
           </p>
           <div className="flex">
             <label
               className={`flex items-center justify-center p-2 px-4 text-sm hover:bg-bg-hover rounded border border-border-main transition-colors cursor-pointer ${
-                isImporting ? 'opacity-50 cursor-not-allowed' : ''
+                isImporting ? 'text-text-muted cursor-not-allowed' : ''
               }`}
               title="Import Notes"
             >

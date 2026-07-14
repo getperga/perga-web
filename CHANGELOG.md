@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.11] - 2026-07-14
+
+### Fixed
+
+- Core: PWA config cache 
+- Core: GOOGLE_CLIENT_ID env var
+- Mobile: notes focus
+- Mobile: duplicates planner items on kewDown / blur race condition
+- Planner: sunday selection when merge_weekends is true
+- Settings: descriptions styles
+
+### Added
+
+- Settings: set password flow for google auth users without password
+
 ## [1.1.10] - 2026-05-24
 
 ### Fixed

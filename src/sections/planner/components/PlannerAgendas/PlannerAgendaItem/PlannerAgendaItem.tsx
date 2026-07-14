@@ -46,10 +46,14 @@ const PlannerAgendaItem = ({
   const [value, setValue] = useState(item.text);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // prevent race condition on keyDown and blur events on mobiles
+  const isSavingRef = useRef(false);
+
   // focus on input when clicking on item
   useEffect(() => {
     if (isEditing) {
       inputRef.current?.focus({ preventScroll: true });
+      isSavingRef.current = false;
     }
   }, [isEditing]);
 
@@ -89,6 +93,11 @@ const PlannerAgendaItem = ({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
+      if (isSavingRef.current) {
+        return;
+      }
+      isSavingRef.current = true;
+
       if (!isEmptyItem) {
         setIsEditing(false);
         onUpdateItem(item.id, { text: value });
@@ -96,6 +105,7 @@ const PlannerAgendaItem = ({
         // For empty item, update but stay in editing mode
         onUpdateItem(item.id, { text: value });
         setValue(''); // Clear the input after adding
+        isSavingRef.current = false;
       }
     }
     if (e.key === 'Escape') {
@@ -207,8 +217,16 @@ const PlannerAgendaItem = ({
           type="text"
           value={value}
           maxLength={ITEM_TEXT_MAX_LENGTH}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            isSavingRef.current = false;
+          }}
           onBlur={() => {
+            if (isSavingRef.current) {
+              return;
+            }
+            isSavingRef.current = true;
+
             setIsEditing(false);
             onUpdateItem(item.id, { text: value });
           }}

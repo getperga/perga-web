@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # Defaults (can be overridden by environment)
-: "${API_BASE_URL:=http://localhost:8080}"
+: "${API_BASE_URL:=http://localhost:8080/api/v1}"
 : "${IS_SIGNUP_DISABLED:=false}"
-: "${GOOGLE_CLIENT_ID:=null}"
+: "${GOOGLE_CLIENT_ID:=}"
 
 # Ensure boolean strings like true/True/1 and false/False/0
 case "$(printf %s "$IS_SIGNUP_DISABLED" | tr '[:upper:]' '[:lower:]')" in
