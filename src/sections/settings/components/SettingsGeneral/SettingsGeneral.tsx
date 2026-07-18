@@ -187,8 +187,22 @@ export const SettingsGeneral: React.FC = () => {
           <label className="text-text-main text-sm font-medium">Theme</label>
           <Toggle
             options={[
-              { value: false, label: 'Light' },
-              { value: true, label: 'Dark' },
+              {
+                value: false,
+                label: (
+                  <span className="flex items-center gap-1.5">
+                    <Icon name="sun" size={16} /> Light
+                  </span>
+                ),
+              },
+              {
+                value: true,
+                label: (
+                  <span className="flex items-center gap-1.5">
+                    <Icon name="moon" size={16} /> Dark
+                  </span>
+                ),
+              },
             ]}
             value={isDarkThemeEnabled}
             onChange={handleThemeChange}
