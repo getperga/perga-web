@@ -8,7 +8,7 @@ import { NotesProvider } from '@notes/context';
 import Notes from '@notes/Notes';
 import Planner from '@planner/Planner';
 import { Layout } from '@sections/Layout';
-import { Settings, SettingsProfile, SettingsPlanner, SettingsNotes } from '@settings/index';
+import { Settings, SettingsGeneral, SettingsPlanner, SettingsNotes } from '@settings/index';
 
 // Setup axios interceptors for token inclusion before mounting the App
 setupAxiosInterceptors();
@@ -34,8 +34,8 @@ function App() {
               <Route path="planner" element={<Planner />} />
               <Route path="notes" element={<Notes />} />
               <Route path="settings" element={<Settings />}>
-                <Route index element={<Navigate to="/settings/profile/" replace />} />
-                <Route path="profile" element={<SettingsProfile />} />
+                <Route index element={<Navigate to="/settings/general/" replace />} />
+                <Route path="general" element={<SettingsGeneral />} />
                 <Route path="planner" element={<SettingsPlanner />} />
                 <Route
                   path="notes"

@@ -5,9 +5,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '@common/components/Icon';
 import { useAuth } from '@common/contexts/auth/useAuth';
 import { triggerRefresh } from '@common/events';
-import Storage from '@common/utils/storage';
-import { StorageKeys } from '@common/utils/storage_keys';
-import { applyThemeClass } from '@common/utils/theme';
 
 export const Sidebar = () => {
   const location = useLocation();
@@ -16,10 +13,6 @@ export const Sidebar = () => {
 
   const [isSpinning, setIsSpinning] = useState(false);
   const spinTimeoutRef = useRef<number | null>(null);
-
-  const [isDarkThemeEnabled, setIsDarkThemeEnabled] = useState<boolean>(() => {
-    return Storage.getBoolean(StorageKeys.IsDarkThemeEnabled, true);
-  });
 
   const handleRefreshClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     triggerRefresh();
@@ -61,17 +54,6 @@ export const Sidebar = () => {
     navigate('/signin/');
   };
 
-  const handleToggleThemeClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.currentTarget.blur();
-
-    setIsDarkThemeEnabled((prev) => {
-      const next = !prev;
-      Storage.setBoolean(StorageKeys.IsDarkThemeEnabled, next);
-      applyThemeClass(next);
-      return next;
-    });
-  };
-
   return (
     <div className="h-screen bg-bg-sidebar flex flex-col transition-all duration-300 fixed w-14 md:w-20 pt-16 md:pt-0">
       <nav className="flex-grow">
@@ -109,21 +91,8 @@ export const Sidebar = () => {
           <div className="text-sm hidden md:block">Refresh</div>
         </button>
 
-        <button
-          onClick={handleToggleThemeClick}
-          aria-label="Toggle dark mode"
-          title="Toggle dark mode"
-          className="flex flex-col items-center py-4 w-full hover:bg-bg-sidebar-hover focus:bg-bg-sidebar-hover
-                         text-text-sidebar hover:text-text-sidebar-hover focus:text-text-sidebar-hover transition-colors"
-        >
-          <div>
-            <Icon name={isDarkThemeEnabled ? 'sun' : 'moon'} size="20" className="w-8 h-8" />
-          </div>
-          <div className="text-sm hidden md:block">Theme</div>
-        </button>
-
         <Link
-          to="/settings/profile/"
+          to="/settings/general/"
           aria-label="Settings"
           title="Settings"
           className={`flex flex-col items-center py-4 hover:bg-bg-sidebar-hover focus:bg-bg-sidebar-hover text-text-sidebar 

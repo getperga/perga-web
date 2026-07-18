@@ -2,7 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 export const Settings = () => {
   const sections = [
-    { label: 'Profile', to: '/settings/profile/' },
+    { label: 'General', to: '/settings/general/' },
     { label: 'Planner', to: '/settings/planner/' },
     { label: 'Notes', to: '/settings/notes/' },
   ];
