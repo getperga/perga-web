@@ -8,6 +8,10 @@ export interface NoteDTO {
 
 export type NoteMetaDTO = Omit<NoteDTO, 'body'>;
 
+export interface NoteSearchResultDTO extends NoteMetaDTO {
+  folders_path: string[];
+}
+
 export interface NoteCreateDTO {
   folder_id: number;
   title?: string;
