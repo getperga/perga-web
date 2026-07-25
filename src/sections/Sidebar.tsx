@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '@common/components/Icon';
 import { useAuth } from '@common/contexts/auth/useAuth';
 import { triggerRefresh } from '@common/events';
+import { NotesSearchModal } from '@notes/components/NotesSearchModal/NotesSearchModal';
 
 export const Sidebar = () => {
   const location = useLocation();
@@ -12,6 +13,7 @@ export const Sidebar = () => {
   const { logout } = useAuth();
 
   const [isSpinning, setIsSpinning] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const spinTimeoutRef = useRef<number | null>(null);
 
   const handleRefreshClick = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -75,6 +77,19 @@ export const Sidebar = () => {
 
       <div className="mt-auto">
         <button
+          onClick={() => setIsSearchOpen(true)}
+          aria-label="Search notes"
+          title="Search notes"
+          className="flex flex-col items-center py-4 w-full hover:bg-bg-sidebar-hover focus:bg-bg-sidebar-hover
+                         text-text-sidebar hover:text-text-sidebar-hover focus:text-text-sidebar-hover transition-colors"
+        >
+          <div>
+            <Icon name="search" size="20" className="w-8 h-8" />
+          </div>
+          <div className="text-sm hidden md:block">Search</div>
+        </button>
+
+        <button
           onClick={handleRefreshClick}
           aria-label="Refresh data"
           title="Refresh data"
@@ -118,6 +133,8 @@ export const Sidebar = () => {
           <div className="text-sm hidden md:block">Logout</div>
         </button>
       </div>
+
+      <NotesSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </div>
   );
 };

@@ -4,7 +4,6 @@ import { getConfig } from '@/config';
 import { setupAxiosInterceptors } from '@api/auth';
 import { ProtectedRoute, Signin, Signup } from '@auth/index';
 import { AuthProvider } from '@common/contexts/auth';
-import { NotesProvider } from '@notes/context';
 import Notes from '@notes/Notes';
 import Planner from '@planner/Planner';
 import { Layout } from '@sections/Layout';
@@ -37,14 +36,7 @@ function App() {
                 <Route index element={<Navigate to="/settings/general/" replace />} />
                 <Route path="general" element={<SettingsGeneral />} />
                 <Route path="planner" element={<SettingsPlanner />} />
-                <Route
-                  path="notes"
-                  element={
-                    <NotesProvider>
-                      <SettingsNotes />
-                    </NotesProvider>
-                  }
-                />
+                <Route path="notes" element={<SettingsNotes />} />
               </Route>
             </Route>
           </Route>

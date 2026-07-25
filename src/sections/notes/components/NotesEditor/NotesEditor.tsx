@@ -8,10 +8,13 @@ import { TaskItem, TaskList } from '@tiptap/extension-list';
 
 import type { NoteDTO } from '@api/notes';
 import { cleanEditorHTML } from '@common/utils/string_utils';
+import { NoteFind } from '@notes/components/NotesEditor/extensions/noteFind.ts';
+import { NotesEditorFindBar } from '@notes/components/NotesEditor/NotesEditorFindBar/NotesEditorFindBar';
 import { NotesEditorMenuBar } from '@notes/components/NotesEditor/NotesEditorMenuBar/NotesEditorMenuBar';
 import { useNotesDebounceUpdate } from '@notes/components/NotesEditor/useNotesDebounceUpdate';
-import { useNotes } from '@notes/context';
+import { useNotesFind } from '@notes/components/NotesEditor/useNotesFind';
 import '@notes/components/NotesEditor/notes_editor.css';
+import { useNotes } from '@notes/context';
 
 interface NotesEditorProps {
   note: NoteDTO | null;
@@ -19,7 +22,7 @@ interface NotesEditorProps {
 }
 
 export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
-  const { trashItemIds, focusTrigger } = useNotes();
+  const { trashItemIds, focusTrigger, findQueryTrigger } = useNotes();
   const isInTrash = note?.id ? trashItemIds.noteIds.includes(note.id) : false;
 
   const [title, setTitle] = useState(note?.title || '');
@@ -45,6 +48,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
       TaskItem.configure({
         nested: true,
       }),
+      NoteFind,
     ],
     content: note?.body || '',
     onUpdate: () => {
@@ -88,6 +92,25 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
     }
   }, [focusTrigger, editor]);
 
+  const {
+    isFindBarOpen,
+    findQuery,
+    findMatchCount,
+    findCurrentIndex,
+    findInputRef,
+    toggleFindBar,
+    closeFindBar,
+    handleFindQueryChange,
+    handleFindNext,
+    handleFindPrev,
+  } = useNotesFind({
+    editor,
+    noteId,
+    noteBody,
+    lastSyncedNoteIdRef,
+    findQueryTrigger,
+  });
+
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
     debounceUpdate(newTitle, undefined);
@@ -102,6 +125,13 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
     debounceUpdate(undefined, newBody);
   };
 
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      toggleFindBar();
+    }
+  };
+
   if (!note) {
     return (
       <div className="flex items-center justify-center h-full text-text-main/40">
@@ -111,7 +141,10 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
   }
 
   return (
-    <div className="flex flex-col h-full p-6 space-y-4 overflow-hidden">
+    <div
+      className="flex flex-col h-full p-6 space-y-4 overflow-hidden"
+      onKeyDown={handleEditorKeyDown}
+    >
       <input
         type="text"
         value={title}
@@ -121,7 +154,19 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
           isInTrash ? 'opacity-50' : ''
         }`}
       />
-      <NotesEditorMenuBar editor={editor} />
+      <NotesEditorMenuBar editor={editor} onFindClick={toggleFindBar} />
+      {isFindBarOpen && (
+        <NotesEditorFindBar
+          query={findQuery}
+          matchCount={findMatchCount}
+          currentIndex={findCurrentIndex}
+          inputRef={findInputRef}
+          onQueryChange={handleFindQueryChange}
+          onNext={handleFindNext}
+          onPrev={handleFindPrev}
+          onClose={closeFindBar}
+        />
+      )}
       <EditorContent editor={editor} className="flex-1 overflow-hidden flex flex-col" />
     </div>
   );

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import type { NoteSearchResultDTO } from '@api/notes';
 import { searchNotes } from '@api/notes';
 import { Icon, Modal } from '@common/components';
-import { triggerOpenNoteFromSearch } from '@common/events';
+import { useNotes } from '@notes/context';
 
 const SEARCH_DEBOUNCE_TIMEOUT = 300;
 
@@ -15,6 +15,9 @@ interface NotesSearchModalProps {
 
 export const NotesSearchModal: React.FC<NotesSearchModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
+
+  const { openNoteFromSearch } = useNotes();
+
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<NoteSearchResultDTO[]>([]);
 
@@ -46,7 +49,7 @@ export const NotesSearchModal: React.FC<NotesSearchModalProps> = ({ isOpen, onCl
   }, [query]);
 
   const handleSelectResult = (note: NoteSearchResultDTO) => {
-    triggerOpenNoteFromSearch(note.id, query.trim());
+    openNoteFromSearch(note.id, query.trim());
     navigate('/notes/');
     onClose();
   };

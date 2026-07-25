@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { StorageKeys } from '@common/utils/storage_keys';
 
 import type {
   NotesFolderResponseDTO,
@@ -20,8 +19,10 @@ import {
 } from '@api/notes';
 import { REFRESH_EVENT } from '@common/events';
 import { downloadFile } from '@common/utils/download_utils';
+import { StorageKeys } from '@common/utils/storage_keys';
 import { NOTES_DEFAULT_EXTENSION, NOTES_EXTENSION_MAP } from '@notes/const';
 import { NotesTrashItemIds } from '@notes/types.ts';
+import { saveNoteFindQueryToStorage } from '@notes/utils';
 
 export const useNotesState = () => {
   const [rootFolder, setRootFolder] = useState<NotesFolderResponseDTO | null>(null);
@@ -36,6 +37,7 @@ export const useNotesState = () => {
   });
   const [selectedNote, setSelectedNote] = useState<NoteDTO | null>(null);
   const [focusTrigger, setFocusTrigger] = useState(0);
+  const [findQueryTrigger, setFindQueryTrigger] = useState(0);
 
   // use ref to avoid infinite loop when updating selectedNote in handleUpdateNote
   const selectedNoteRef = useRef(selectedNote);
@@ -313,6 +315,12 @@ export const useNotesState = () => {
     setFocusTrigger((prev) => prev + 1);
   }, []);
 
+  const openNoteFromSearch = useCallback((noteId: number, query: string) => {
+    saveNoteFindQueryToStorage(noteId, query);
+    setSelectedNoteId(noteId);
+    setFindQueryTrigger((prev) => prev + 1);
+  }, []);
+
   return {
     rootFolder,
     trashFolder,
@@ -334,5 +342,7 @@ export const useNotesState = () => {
     selectedNote,
     selectedNoteId,
     trashItemIds,
+    openNoteFromSearch,
+    findQueryTrigger,
   };
 };
