@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '@common/components/Icon';
 import { useAuth } from '@common/contexts/auth/useAuth';
 import { triggerRefresh } from '@common/events';
-import { NotesSearchModal } from '@notes/components/NotesSearchModal/NotesSearchModal';
+import { SearchModal } from '@sections/search/SearchModal.tsx';
 
 export const Sidebar = () => {
   const location = useLocation();
@@ -35,6 +35,21 @@ export const Sidebar = () => {
       if (spinTimeoutRef.current) {
         window.clearTimeout(spinTimeoutRef.current);
       }
+    };
+  }, []);
+
+  // open global search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
@@ -78,8 +93,8 @@ export const Sidebar = () => {
       <div className="mt-auto">
         <button
           onClick={() => setIsSearchOpen(true)}
-          aria-label="Search notes"
-          title="Search notes"
+          aria-label="Search"
+          title="Search (Ctrl+K)"
           className="flex flex-col items-center py-4 w-full hover:bg-bg-sidebar-hover focus:bg-bg-sidebar-hover
                          text-text-sidebar hover:text-text-sidebar-hover focus:text-text-sidebar-hover transition-colors"
         >
@@ -134,7 +149,7 @@ export const Sidebar = () => {
         </button>
       </div>
 
-      <NotesSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+      <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </div>
   );
 };
