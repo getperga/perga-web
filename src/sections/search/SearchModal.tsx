@@ -118,9 +118,9 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Search">
-      <div className="p-4">
-        <div className="flex items-center bg-bg-hover rounded text-text-main">
+    <Modal isOpen={isOpen} onClose={onClose} title="Search" className="max-w-2xl">
+      <div className="p-4 flex flex-col min-h-0 flex-1">
+        <div className="flex items-center bg-bg-hover rounded text-text-main shrink-0">
           <Icon name="search" size={20} className="ml-2 opacity-60 shrink-0" />
           <input
             type="text"
@@ -133,7 +133,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
           />
         </div>
 
-        <div className="mt-2 max-h-72 overflow-y-auto">
+        <div className="mt-2 min-h-40 max-h-[60vh] sm:max-h-72 overflow-y-auto">
           {isTyping ? (
             results.length === 0 ? (
               <div className="p-2 text-sm text-text-main/60">No notes found</div>

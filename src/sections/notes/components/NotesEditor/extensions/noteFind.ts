@@ -56,11 +56,22 @@ export const getFindState = (editor: Editor): FindState => {
   return findPluginKey.getState(editor.state) ?? EMPTY_FIND_STATE;
 };
 
-export const scrollToMatch = (editor: Editor, pos: number) => {
-  const domResult = editor.view.domAtPos(pos);
-  const node = domResult.node;
-  const element = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
-  element?.scrollIntoView({ block: 'center' });
+export const scrollToMatch = (editor: Editor, pos: number, attemptsLeft = 3) => {
+  if (editor.isDestroyed) {
+    return;
+  }
+
+  try {
+    const domResult = editor.view.domAtPos(pos);
+    const node = domResult.node;
+    const element = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
+    element?.scrollIntoView({ block: 'center' });
+  } catch {
+    // the editor view may not be mounted yet (e.g., right after navigating to a freshly opened note)
+    if (attemptsLeft > 0) {
+      requestAnimationFrame(() => scrollToMatch(editor, pos, attemptsLeft - 1));
+    }
+  }
 };
 
 const buildDecorations = (doc: ProseMirrorNode, findState: FindState): DecorationSet => {

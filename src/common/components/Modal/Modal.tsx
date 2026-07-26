@@ -45,15 +45,15 @@ export const Modal: React.FC<ModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-24"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-6 sm:pt-24"
       onMouseDown={handleBackdropClick}
     >
       <div
-        className={`bg-bg-main border border-border-main rounded shadow-lg w-full max-w-lg ${className}`}
+        className={`bg-bg-main border border-border-main rounded shadow-lg w-full max-w-lg max-h-[calc(100vh-3rem)] sm:max-h-[calc(100vh-8rem)] flex flex-col ${className}`}
         onMouseDown={(event) => event.stopPropagation()}
       >
         {title && (
-          <div className="px-4 py-3 border-b border-border-main">
+          <div className="px-4 py-3 border-b border-border-main shrink-0">
             <h2 className="text-text-main font-medium">{title}</h2>
           </div>
         )}
