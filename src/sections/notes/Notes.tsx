@@ -2,13 +2,13 @@ import { TwoPaneLayout } from '@common/components/TwoPaneLayout';
 import { StorageKeys } from '@common/utils/storage_keys';
 import { NotesFolders } from '@notes/components/NotesFolders/NotesFolders';
 import { NotesEditor } from '@notes/components/NotesEditor/NotesEditor';
-import { NotesProvider, useNotes } from '@notes/context';
+import { useNotes } from '@notes/context';
 
 const DEFAULT_LEFT_PANE_WIDTH_PERCENT = 20; // w-1/5
 const MIN_LEFT_PANE_WIDTH_PERCENT = 15;
 const MAX_LEFT_PANE_WIDTH_PERCENT = 30;
 
-const NotesContent = () => {
+const Notes = () => {
   const { selectedNote, handleUpdateNote } = useNotes();
 
   return (
@@ -20,14 +20,6 @@ const NotesContent = () => {
       leftPane={<NotesFolders />}
       rightPane={<NotesEditor note={selectedNote} onUpdate={handleUpdateNote} />}
     />
-  );
-};
-
-const Notes = () => {
-  return (
-    <NotesProvider>
-      <NotesContent />
-    </NotesProvider>
   );
 };
 

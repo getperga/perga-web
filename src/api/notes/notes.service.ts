@@ -5,6 +5,7 @@ import type {
   NoteDTO,
   NoteCreateDTO,
   NoteUpdateDTO,
+  NoteSearchResultDTO,
   NotesFolderDTO,
   NotesFolderCreateDTO,
   NotesFolderUpdateDTO,
@@ -24,6 +25,9 @@ export const createNote = (note: NoteCreateDTO) => axios.post<NoteDTO>(`${NOTES_
 
 export const updateNote = (noteId: number, changes: NoteUpdateDTO) =>
   axios.patch<NoteDTO>(`${NOTES_API_URL}/${noteId}/`, changes);
+
+export const searchNotes = (query: string) =>
+  axios.get<NoteSearchResultDTO[]>(`${NOTES_API_URL}/search/`, { params: { query } });
 
 // Notes Folders API methods
 export const getFolders = () =>

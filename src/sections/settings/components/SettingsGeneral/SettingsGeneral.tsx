@@ -7,13 +7,27 @@ import { useAuth } from '@common/contexts/auth/useAuth';
 import { useToast } from '@common/contexts/toast/useToast';
 import { useGoogleAuthInit, requestGoogleCode } from '@common/utils/googleAuth';
 import { Icon } from '@common/components/Icon/Icon';
+import { Toggle } from '@common/components/Toggle';
+import Storage from '@common/utils/storage';
+import { StorageKeys } from '@common/utils/storage_keys';
+import { applyThemeClass } from '@common/utils/theme';
 
 // Use sessionStorage to keep google auth verification state for set new password flow
 const GOOGLE_VERIFIED_SESSION_STORAGE_KEY = 'settings_profile_google_verified';
 
-export const SettingsProfile: React.FC = () => {
+export const SettingsGeneral: React.FC = () => {
   const { user, fetchUser, googleSignin } = useAuth();
   const { showToast, showError } = useToast();
+
+  const [isDarkThemeEnabled, setIsDarkThemeEnabled] = useState<boolean>(() => {
+    return Storage.getBoolean(StorageKeys.IsDarkThemeEnabled, true);
+  });
+
+  const handleThemeChange = (isDark: boolean) => {
+    Storage.setBoolean(StorageKeys.IsDarkThemeEnabled, isDark);
+    applyThemeClass(isDark);
+    setIsDarkThemeEnabled(isDark);
+  };
 
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -166,7 +180,37 @@ export const SettingsProfile: React.FC = () => {
 
   return (
     <div className="w-full md:max-w-1/3">
-      <form onSubmit={handleProfileUpdate}>
+      <fieldset className="border border-gray-400 rounded p-8">
+        <legend className="px-2 text-text-main">Appearance</legend>
+
+        <div className="flex items-center justify-between">
+          <label className="text-text-main text-sm font-medium">Theme</label>
+          <Toggle
+            options={[
+              {
+                value: false,
+                label: (
+                  <span className="flex items-center gap-1.5">
+                    <Icon name="sun" size={16} /> Light
+                  </span>
+                ),
+              },
+              {
+                value: true,
+                label: (
+                  <span className="flex items-center gap-1.5">
+                    <Icon name="moon" size={16} /> Dark
+                  </span>
+                ),
+              },
+            ]}
+            value={isDarkThemeEnabled}
+            onChange={handleThemeChange}
+          />
+        </div>
+      </fieldset>
+
+      <form onSubmit={handleProfileUpdate} className="mt-10">
         <fieldset className="border border-gray-400 rounded p-8">
           <legend className="px-2 text-text-main">Edit Profile</legend>
 

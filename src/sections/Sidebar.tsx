@@ -5,9 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '@common/components/Icon';
 import { useAuth } from '@common/contexts/auth/useAuth';
 import { triggerRefresh } from '@common/events';
-import Storage from '@common/utils/storage';
-import { StorageKeys } from '@common/utils/storage_keys';
-import { applyThemeClass } from '@common/utils/theme';
+import { SearchModal } from '@sections/search/SearchModal';
 
 export const Sidebar = () => {
   const location = useLocation();
@@ -15,11 +13,8 @@ export const Sidebar = () => {
   const { logout } = useAuth();
 
   const [isSpinning, setIsSpinning] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const spinTimeoutRef = useRef<number | null>(null);
-
-  const [isDarkThemeEnabled, setIsDarkThemeEnabled] = useState<boolean>(() => {
-    return Storage.getBoolean(StorageKeys.IsDarkThemeEnabled, true);
-  });
 
   const handleRefreshClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     triggerRefresh();
@@ -43,6 +38,21 @@ export const Sidebar = () => {
     };
   }, []);
 
+  // open global search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   const navItems = [
     {
       path: '/planner/',
@@ -59,17 +69,6 @@ export const Sidebar = () => {
   const handleLogout = () => {
     logout();
     navigate('/signin/');
-  };
-
-  const handleToggleThemeClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.currentTarget.blur();
-
-    setIsDarkThemeEnabled((prev) => {
-      const next = !prev;
-      Storage.setBoolean(StorageKeys.IsDarkThemeEnabled, next);
-      applyThemeClass(next);
-      return next;
-    });
   };
 
   return (
@@ -93,6 +92,19 @@ export const Sidebar = () => {
 
       <div className="mt-auto">
         <button
+          onClick={() => setIsSearchOpen(true)}
+          aria-label="Search"
+          title="Search (Ctrl+K)"
+          className="flex flex-col items-center py-4 w-full hover:bg-bg-sidebar-hover focus:bg-bg-sidebar-hover
+                         text-text-sidebar hover:text-text-sidebar-hover focus:text-text-sidebar-hover transition-colors"
+        >
+          <div>
+            <Icon name="search" size="20" className="w-8 h-8" />
+          </div>
+          <div className="text-sm hidden md:block">Search</div>
+        </button>
+
+        <button
           onClick={handleRefreshClick}
           aria-label="Refresh data"
           title="Refresh data"
@@ -109,21 +121,8 @@ export const Sidebar = () => {
           <div className="text-sm hidden md:block">Refresh</div>
         </button>
 
-        <button
-          onClick={handleToggleThemeClick}
-          aria-label="Toggle dark mode"
-          title="Toggle dark mode"
-          className="flex flex-col items-center py-4 w-full hover:bg-bg-sidebar-hover focus:bg-bg-sidebar-hover
-                         text-text-sidebar hover:text-text-sidebar-hover focus:text-text-sidebar-hover transition-colors"
-        >
-          <div>
-            <Icon name={isDarkThemeEnabled ? 'sun' : 'moon'} size="20" className="w-8 h-8" />
-          </div>
-          <div className="text-sm hidden md:block">Theme</div>
-        </button>
-
         <Link
-          to="/settings/profile/"
+          to="/settings/general/"
           aria-label="Settings"
           title="Settings"
           className={`flex flex-col items-center py-4 hover:bg-bg-sidebar-hover focus:bg-bg-sidebar-hover text-text-sidebar 
@@ -149,6 +148,8 @@ export const Sidebar = () => {
           <div className="text-sm hidden md:block">Logout</div>
         </button>
       </div>
+
+      <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </div>
   );
 };

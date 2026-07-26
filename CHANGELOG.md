@@ -1,10 +1,17 @@
 # Changelog
 
+## [1.2.0] - 2026-07-26
+
+### Added
+
+- Single note find query feature
+- Global notes search modal
+
 ## [1.1.11] - 2026-07-14
 
 ### Fixed
 
-- Core: PWA config cache 
+- Core: PWA config cache
 - Core: GOOGLE_CLIENT_ID env var
 - Mobile: notes focus
 - Mobile: duplicates planner items on kewDown / blur race condition

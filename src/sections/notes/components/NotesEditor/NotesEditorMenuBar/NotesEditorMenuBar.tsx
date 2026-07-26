@@ -1,13 +1,15 @@
 import React from 'react';
 import type { Editor } from '@tiptap/react';
 
+import { Icon } from '@common/components';
 import { editorIcons } from '../notes_editor_icons';
 
 interface MenuBarProps {
   editor: Editor | null;
+  onFindClick?: () => void;
 }
 
-export const NotesEditorMenuBar: React.FC<MenuBarProps> = ({ editor }) => {
+export const NotesEditorMenuBar: React.FC<MenuBarProps> = ({ editor, onFindClick }) => {
   if (!editor) {
     return null;
   }
@@ -153,6 +155,17 @@ export const NotesEditorMenuBar: React.FC<MenuBarProps> = ({ editor }) => {
           })}
         </button>
       ))}
+
+      {onFindClick && (
+        <button
+          onClick={onFindClick}
+          title="Find in note (Ctrl+F)"
+          className="p-1.5 rounded hover:bg-bg-hover text-text-muted transition-colors ml-auto"
+          tabIndex={-1}
+        >
+          <Icon name="search" size={18} />
+        </button>
+      )}
     </div>
   );
 };

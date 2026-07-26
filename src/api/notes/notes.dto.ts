@@ -63,3 +63,7 @@ export interface NotesExportRequestSchema {
 export interface NotesImportResponseDTO {
   imported_count: number;
 }
+
+export interface NoteSearchResultDTO extends NoteMetaDTO {
+  folders_path: string[];
+}
