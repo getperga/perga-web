@@ -155,7 +155,7 @@ export const NotesEditorMenuBar: React.FC<MenuBarProps> = ({ editor, onFindClick
           })}
         </button>
       ))}
-      
+
       {onFindClick && (
         <button
           onClick={onFindClick}

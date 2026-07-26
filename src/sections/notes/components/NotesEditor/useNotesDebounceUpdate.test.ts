@@ -75,7 +75,7 @@ describe('useNotesDebounceUpdate', () => {
     expect(mockOnUpdate).toHaveBeenCalledWith(1, 'New Title', 'New Body');
   });
 
-  it('should reset pending changes when switching notes', async () => {
+  it('should save pending changes for the outgoing note when switching notes', async () => {
     const { result, rerender } = renderHook(
       ({ selectedNote }) => useNotesDebounceUpdate({ selectedNote, onUpdate: mockOnUpdate }),
       {
@@ -95,14 +95,20 @@ describe('useNotesDebounceUpdate', () => {
       body: 'Second Body',
       updated_dt: '2021-01-01',
     };
-    rerender({ selectedNote: secondNote });
+    act(() => {
+      rerender({ selectedNote: secondNote });
+    });
+
+    // Pending changes for the first note are flushed synchronously as part of the switch
+    expect(mockOnUpdate).toHaveBeenCalledWith(1, 'New Title', undefined);
+
+    mockOnUpdate.mockClear();
 
     act(() => {
       vi.advanceTimersByTime(1000);
     });
 
-    // Should NOT have called update for the first note because it was cleared on switch
-    // AND should NOT have called update for the second note because it was just switched
+    // No pending changes for the second note, so no further update
     expect(mockOnUpdate).not.toHaveBeenCalled();
   });
 

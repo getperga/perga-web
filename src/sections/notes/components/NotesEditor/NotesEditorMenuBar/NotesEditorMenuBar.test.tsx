@@ -224,7 +224,8 @@ describe('NotesEditorMenuBar', () => {
     expect(boldButton.className).toContain('text-text-main');
 
     const italicButton = screen.getByTitle('Italic');
-    expect(italicButton.className).not.toContain('bg-bg-hover');
+    // every button has `hover:bg-bg-hover`, so check for the active-only `bg-bg-hover` token instead
+    expect(italicButton.className.split(' ')).not.toContain('bg-bg-hover');
     expect(italicButton.className).toContain('text-text-muted');
   });
 });

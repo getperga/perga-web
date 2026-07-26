@@ -60,7 +60,7 @@ export const useNotesDebounceUpdate = ({ selectedNote, onUpdate }: UseNotesDebou
     }
   };
 
-  // unmount cleanup
+  // save pending changes when switching notes or unmounting
   useEffect(() => {
     return () => {
       // clear timer

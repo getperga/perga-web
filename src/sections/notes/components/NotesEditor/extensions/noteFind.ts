@@ -17,7 +17,7 @@ interface FindState {
 const EMPTY_FIND_STATE: FindState = {
   query: '',
   results: [],
-  currentIndex: -1
+  currentIndex: -1,
 };
 
 const findMatchesInDoc = (doc: ProseMirrorNode, query: string): FindMatch[] => {
@@ -38,7 +38,7 @@ const findMatchesInDoc = (doc: ProseMirrorNode, query: string): FindMatch[] => {
     while (idx !== -1) {
       results.push({
         from: pos + idx,
-        to: pos + idx + query.length
+        to: pos + idx + query.length,
       });
       searchFrom = idx + query.length;
       idx = lowerText.indexOf(lowerQuery, searchFrom);
@@ -54,7 +54,7 @@ const findPluginKey = new PluginKey<FindState>('noteFind');
 
 export const getFindState = (editor: Editor): FindState => {
   return findPluginKey.getState(editor.state) ?? EMPTY_FIND_STATE;
-}
+};
 
 export const scrollToMatch = (editor: Editor, pos: number) => {
   const domResult = editor.view.domAtPos(pos);
@@ -130,7 +130,8 @@ export const NoteFind = Extension.create({
             return false;
           }
 
-          const prevIndex = (current.currentIndex - 1 + current.results.length) % current.results.length;
+          const prevIndex =
+            (current.currentIndex - 1 + current.results.length) % current.results.length;
           if (dispatch) {
             dispatch(tr.setMeta(findPluginKey, { ...current, currentIndex: prevIndex }));
           }
@@ -164,7 +165,8 @@ export const NoteFind = Extension.create({
               const results = findMatchesInDoc(tr.doc, prev.query);
               return {
                 query: prev.query,
-                results, currentIndex: results.length ? 0 : -1
+                results,
+                currentIndex: results.length ? 0 : -1,
               };
             }
 

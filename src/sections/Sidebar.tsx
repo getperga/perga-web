@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '@common/components/Icon';
 import { useAuth } from '@common/contexts/auth/useAuth';
 import { triggerRefresh } from '@common/events';
-import { SearchModal } from '@sections/search/SearchModal.tsx';
+import { SearchModal } from '@sections/search/SearchModal';
 
 export const Sidebar = () => {
   const location = useLocation();

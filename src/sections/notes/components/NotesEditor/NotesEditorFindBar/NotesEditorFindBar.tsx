@@ -73,7 +73,7 @@ export const NotesEditorFindBar: React.FC<NotesEditorFindBarProps> = ({
       >
         <Icon name="rightChevron" size={14} />
       </button>
-      
+
       <button
         onClick={onClose}
         title="Close find"

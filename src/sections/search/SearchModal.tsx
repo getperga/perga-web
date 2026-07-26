@@ -18,7 +18,9 @@ const SEARCH_NAV_ITEMS: SearchNavItem[] = [
   {
     path: '/planner/',
     label: 'Planner',
-    icon: <Icon name="planner" size={24} fill="currentColor" className="mr-2 opacity-70 shrink-0" />,
+    icon: (
+      <Icon name="planner" size={24} fill="currentColor" className="mr-2 opacity-70 shrink-0" />
+    ),
   },
   {
     path: '/notes/',

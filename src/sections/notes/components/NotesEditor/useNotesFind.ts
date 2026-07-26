@@ -37,12 +37,15 @@ export const useNotesFind = ({
     if (!editor || lastSyncedNoteIdRef.current !== noteId) {
       return;
     }
-    if (lastAppliedFindRef.current.noteId === noteId && lastAppliedFindRef.current.trigger === findQueryTrigger) {
+    if (
+      lastAppliedFindRef.current.noteId === noteId &&
+      lastAppliedFindRef.current.trigger === findQueryTrigger
+    ) {
       return;
     }
     lastAppliedFindRef.current = {
       noteId,
-      trigger: findQueryTrigger
+      trigger: findQueryTrigger,
     };
 
     const findQueries = Storage.getJSON<Record<string, string>>(StorageKeys.NotesFindQuery, {});
