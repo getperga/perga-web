@@ -37,6 +37,7 @@ export const useNotesState = () => {
   });
   const [selectedNote, setSelectedNote] = useState<NoteDTO | null>(null);
   const [focusTrigger, setFocusTrigger] = useState(0);
+  const [titleFocusNoteId, setTitleFocusNoteId] = useState<number | null>(null);
   const [findQueryTrigger, setFindQueryTrigger] = useState(0);
 
   // use ref to avoid infinite loop when updating selectedNote in handleUpdateNote
@@ -109,6 +110,7 @@ export const useNotesState = () => {
       try {
         const response = await createNote({ body: '', folder_id: folderId });
         setSelectedNoteId(response.data.id);
+        setTitleFocusNoteId(response.data.id);
         await fetchFolders();
       } catch (error) {
         console.error('Error creating note:', error);
@@ -315,6 +317,10 @@ export const useNotesState = () => {
     setFocusTrigger((prev) => prev + 1);
   }, []);
 
+  const clearTitleFocusRequest = useCallback((noteId: number) => {
+    setTitleFocusNoteId((pendingNoteId) => (pendingNoteId === noteId ? null : pendingNoteId));
+  }, []);
+
   const openNoteFromSearch = useCallback((noteId: number, query: string) => {
     saveNoteFindQueryToStorage(noteId, query);
     setSelectedNoteId(noteId);
@@ -339,6 +345,8 @@ export const useNotesState = () => {
     setSelectedNoteId,
     focusEditor,
     focusTrigger,
+    titleFocusNoteId,
+    clearTitleFocusRequest,
     selectedNote,
     selectedNoteId,
     trashItemIds,

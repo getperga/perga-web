@@ -4,12 +4,16 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { NotesEditor } from './NotesEditor';
 import type { NoteDTO } from '@api/notes';
 
+const notesContext = vi.hoisted(() => ({
+  trashItemIds: { folderIds: [] as number[], noteIds: [] as number[] },
+  focusTrigger: 0,
+  titleFocusNoteId: null as number | null,
+  clearTitleFocusRequest: vi.fn(),
+  findQueryTrigger: 0,
+}));
+
 vi.mock('@notes/context', () => ({
-  useNotes: () => ({
-    trashItemIds: { folderIds: [], noteIds: [] },
-    focusTrigger: 0,
-    findQueryTrigger: 0,
-  }),
+  useNotes: () => notesContext,
 }));
 
 // jsdom does not implement scrollIntoView
@@ -23,6 +27,17 @@ const note: NoteDTO = {
 } as NoteDTO;
 
 describe('NotesEditor find in note', () => {
+  it('focuses the title when the newly created note is loaded', () => {
+    notesContext.titleFocusNoteId = note.id;
+
+    render(<NotesEditor note={note} onUpdate={async () => {}} />);
+
+    expect(document.activeElement).toBe(screen.getByPlaceholderText('Note title'));
+    expect(notesContext.clearTitleFocusRequest).toHaveBeenCalledWith(note.id);
+
+    notesContext.titleFocusNoteId = null;
+  });
+
   it('highlights all matches, cycles current match, and clears on close', async () => {
     render(<NotesEditor note={note} onUpdate={async () => {}} />);
 

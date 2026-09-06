@@ -24,10 +24,17 @@ interface NotesEditorProps {
 }
 
 export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
-  const { trashItemIds, focusTrigger, findQueryTrigger } = useNotes();
+  const {
+    trashItemIds,
+    focusTrigger,
+    titleFocusNoteId,
+    clearTitleFocusRequest,
+    findQueryTrigger,
+  } = useNotes();
   const isInTrash = note?.id ? trashItemIds.noteIds.includes(note.id) : false;
 
   const [title, setTitle] = useState(note?.title || '');
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const lastSyncedNoteIdRef = useRef<number | undefined>(undefined);
   const { debounceUpdate, hasPendingUpdate } = useNotesDebounceUpdate({
     selectedNote: note,
@@ -96,6 +103,14 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
     }
   }, [focusTrigger, editor]);
 
+  // A newly created note is loaded asynchronously, so wait for its id before focusing the title.
+  useEffect(() => {
+    if (noteId === titleFocusNoteId && titleInputRef.current) {
+      titleInputRef.current.focus();
+      clearTitleFocusRequest(noteId);
+    }
+  }, [noteId, titleFocusNoteId, clearTitleFocusRequest]);
+
   const {
     isFindBarOpen,
     findQuery,
@@ -150,6 +165,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
       onKeyDown={handleEditorKeyDown}
     >
       <input
+        ref={titleInputRef}
         type="text"
         value={title}
         onChange={(e) => handleTitleChange(e.target.value)}
