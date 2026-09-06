@@ -179,11 +179,12 @@ describe('NotesEditorMenuBar', () => {
   describe('setLink', () => {
     it('sets link when URL is provided', () => {
       const editor = createMockEditor();
-      vi.spyOn(window, 'prompt').mockReturnValue('https://example.com');
+      const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue(' example.com ');
       render(<NotesEditorMenuBar editor={editor} />);
 
       fireEvent.click(screen.getByTitle('Link'));
 
+      expect(promptSpy).toHaveBeenCalledWith('URL', '');
       expect(editor.chain().focus().extendMarkRange).toHaveBeenCalledWith('link');
       expect(editor.chain().focus().setLink).toHaveBeenCalledWith({ href: 'https://example.com' });
       expect(
@@ -193,7 +194,7 @@ describe('NotesEditorMenuBar', () => {
 
     it('unsets link when URL is empty', () => {
       const editor = createMockEditor();
-      vi.spyOn(window, 'prompt').mockReturnValue('');
+      vi.spyOn(window, 'prompt').mockReturnValue('   ');
       render(<NotesEditorMenuBar editor={editor} />);
 
       fireEvent.click(screen.getByTitle('Link'));

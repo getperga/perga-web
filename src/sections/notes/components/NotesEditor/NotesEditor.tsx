@@ -2,13 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import Underline from '@tiptap/extension-underline';
-import Link from '@tiptap/extension-link';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 
 import type { NoteDTO } from '@api/notes';
 import { cleanEditorHTML } from '@common/utils/string_utils';
 import { NoteFind } from '@notes/components/NotesEditor/extensions/noteFind.ts';
+import {
+  NoteLink,
+  openLinkOnModifierClick,
+} from '@notes/components/NotesEditor/extensions/noteLink';
 import { NotesEditorFindBar } from '@notes/components/NotesEditor/NotesEditorFindBar/NotesEditorFindBar';
 import { NotesEditorMenuBar } from '@notes/components/NotesEditor/NotesEditorMenuBar/NotesEditorMenuBar';
 import { useNotesDebounceUpdate } from '@notes/components/NotesEditor/useNotesDebounceUpdate';
@@ -34,12 +36,13 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        link: false,
+      }),
       Placeholder.configure({
         placeholder: 'Start writing...',
       }),
-      Underline,
-      Link.configure({
+      NoteLink.configure({
         openOnClick: false,
         autolink: true,
         defaultProtocol: 'https',
@@ -55,6 +58,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
       handleBodyChange();
     },
     editorProps: {
+      handleClick: (_view, _pos, event) => openLinkOnModifierClick(event),
       attributes: {
         class: `flex-1 w-full bg-transparent border-none focus:outline-none focus:ring-0 text-text-main resize-none placeholder:text-text-main/30 leading-relaxed overflow-y-auto min-h-[200px] ${
           isInTrash ? 'opacity-50' : ''

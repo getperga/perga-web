@@ -46,6 +46,6 @@ describe('Toggle', () => {
 
     const inactiveOption = screen.getByText('Option 1');
     expect(inactiveOption.className).toContain('text-text-muted');
-    expect(inactiveOption.className).not.toContain('bg-bg-main');
+    expect(inactiveOption.className.split(' ')).not.toContain('bg-bg-main');
   });
 });
