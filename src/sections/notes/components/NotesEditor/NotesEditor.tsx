@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import type { NoteDTO } from '@api/notes';
 import { cleanEditorHTML } from '@common/utils/string_utils';
@@ -32,6 +33,10 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
     findInputFocusNoteId,
     clearFindInputFocusRequest,
     findQueryTrigger,
+    canOpenPreviousNote,
+    canOpenNextNote,
+    openPreviousNote,
+    openNextNote,
   } = useNotes();
   const isInTrash = note?.id ? trashItemIds.noteIds.includes(note.id) : false;
 
@@ -174,16 +179,40 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
       className="flex flex-col h-full p-6 space-y-4 overflow-hidden"
       onKeyDown={handleEditorKeyDown}
     >
-      <input
-        ref={titleInputRef}
-        type="text"
-        value={title}
-        onChange={(e) => handleTitleChange(e.target.value)}
-        placeholder="Note title"
-        className={`text-2xl font-bold bg-transparent border-none focus:outline-none focus:ring-0 text-text-main placeholder:text-text-main/30 ${
-          isInTrash ? 'opacity-50' : ''
-        }`}
-      />
+      <div className="flex items-center gap-2">
+        <div className="flex shrink-0">
+          <button
+            type="button"
+            onClick={openPreviousNote}
+            disabled={!canOpenPreviousNote}
+            title="Previous note"
+            aria-label="Previous note"
+            className="p-1 rounded text-text-muted hover:bg-bg-hover hover:text-text-main transition-colors disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <button
+            type="button"
+            onClick={openNextNote}
+            disabled={!canOpenNextNote}
+            title="Next note"
+            aria-label="Next note"
+            className="p-1 rounded text-text-muted hover:bg-bg-hover hover:text-text-main transition-colors disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+        <input
+          ref={titleInputRef}
+          type="text"
+          value={title}
+          onChange={(e) => handleTitleChange(e.target.value)}
+          placeholder="Note title"
+          className={`min-w-0 flex-1 text-2xl font-bold bg-transparent border-none focus:outline-none focus:ring-0 text-text-main placeholder:text-text-main/30 ${
+            isInTrash ? 'opacity-50' : ''
+          }`}
+        />
+      </div>
       <NotesEditorMenuBar editor={editor} onFindClick={toggleFindBar} />
       {isFindBarOpen && (
         <NotesEditorFindBar

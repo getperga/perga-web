@@ -13,6 +13,10 @@ const notesContext = vi.hoisted(() => ({
   findInputFocusNoteId: null as number | null,
   clearFindInputFocusRequest: vi.fn(),
   findQueryTrigger: 0,
+  canOpenPreviousNote: false,
+  canOpenNextNote: false,
+  openPreviousNote: vi.fn(),
+  openNextNote: vi.fn(),
 }));
 
 vi.mock('@notes/context', () => ({
@@ -30,6 +34,22 @@ const note: NoteDTO = {
 } as NoteDTO;
 
 describe('NotesEditor find in note', () => {
+  it('renders note history navigation and handles enabled buttons', () => {
+    notesContext.canOpenPreviousNote = true;
+    notesContext.canOpenNextNote = true;
+
+    render(<NotesEditor note={note} onUpdate={async () => {}} />);
+
+    fireEvent.click(screen.getByTitle('Previous note'));
+    fireEvent.click(screen.getByTitle('Next note'));
+
+    expect(notesContext.openPreviousNote).toHaveBeenCalledOnce();
+    expect(notesContext.openNextNote).toHaveBeenCalledOnce();
+
+    notesContext.canOpenPreviousNote = false;
+    notesContext.canOpenNextNote = false;
+  });
+
   it('focuses the title when the newly created note is loaded', () => {
     notesContext.titleFocusNoteId = note.id;
 
