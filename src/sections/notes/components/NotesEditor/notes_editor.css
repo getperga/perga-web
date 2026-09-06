@@ -23,12 +23,37 @@
   display: flex;
 }
 .tiptap ul[data-type='taskList'] li label {
+  margin-top: 3px;
+}
+.tiptap ul[data-type='taskList'] li label input[type='checkbox'] {
+  appearance: none;
+  box-sizing: border-box;
+  width: 1.2rem;
+  height: 1.2rem;
+  padding: 0.125rem;
+  border: 1px solid var(--border-main);
+  border-radius: 0.25rem;
+  background-color: var(--bg-main);
   cursor: pointer;
-  margin-top: 1px;
+}
+.tiptap ul[data-type='taskList'] li label input[type='checkbox']:checked {
+  border-color: var(--border-green);
+  background-color: var(--bg-green);
+  background-image: url('../../../../common/components/Icon/icons/checkbox-completed.svg');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-origin: content-box;
+  background-size: 100% 100%;
 }
 .tiptap ul[data-type='taskList'] li div {
-  margin-bottom: 5px;
   margin-left: 10px;
+}
+.tiptap ul[data-type='taskList'] li p {
+  margin-bottom: 5px;
+}
+.tiptap ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--text-muted);
+  text-decoration: line-through;
 }
 
 .tiptap ol {

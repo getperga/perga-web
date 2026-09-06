@@ -18,5 +18,4 @@ dist-ssr
 # IDE
 .vscode/
 .idea/
-.junie/
 .DS_Store
