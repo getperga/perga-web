@@ -38,6 +38,7 @@ export const useNotesState = () => {
   const [selectedNote, setSelectedNote] = useState<NoteDTO | null>(null);
   const [focusTrigger, setFocusTrigger] = useState(0);
   const [titleFocusNoteId, setTitleFocusNoteId] = useState<number | null>(null);
+  const [findInputFocusNoteId, setFindInputFocusNoteId] = useState<number | null>(null);
   const [findQueryTrigger, setFindQueryTrigger] = useState(0);
 
   // use ref to avoid infinite loop when updating selectedNote in handleUpdateNote
@@ -321,9 +322,14 @@ export const useNotesState = () => {
     setTitleFocusNoteId((pendingNoteId) => (pendingNoteId === noteId ? null : pendingNoteId));
   }, []);
 
+  const clearFindInputFocusRequest = useCallback((noteId: number) => {
+    setFindInputFocusNoteId((pendingNoteId) => (pendingNoteId === noteId ? null : pendingNoteId));
+  }, []);
+
   const openNoteFromSearch = useCallback((noteId: number, query: string) => {
     saveNoteFindQueryToStorage(noteId, query);
     setSelectedNoteId(noteId);
+    setFindInputFocusNoteId(noteId);
     setFindQueryTrigger((prev) => prev + 1);
   }, []);
 
@@ -347,6 +353,8 @@ export const useNotesState = () => {
     focusTrigger,
     titleFocusNoteId,
     clearTitleFocusRequest,
+    findInputFocusNoteId,
+    clearFindInputFocusRequest,
     selectedNote,
     selectedNoteId,
     trashItemIds,

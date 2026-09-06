@@ -29,6 +29,8 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
     focusTrigger,
     titleFocusNoteId,
     clearTitleFocusRequest,
+    findInputFocusNoteId,
+    clearFindInputFocusRequest,
     findQueryTrigger,
   } = useNotes();
   const isInTrash = note?.id ? trashItemIds.noteIds.includes(note.id) : false;
@@ -129,6 +131,14 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
     lastSyncedNoteIdRef,
     findQueryTrigger,
   });
+
+  useEffect(() => {
+    if (noteId === findInputFocusNoteId && isFindBarOpen && findInputRef.current) {
+      findInputRef.current.focus();
+      findInputRef.current.select();
+      clearFindInputFocusRequest(noteId);
+    }
+  }, [noteId, findInputFocusNoteId, isFindBarOpen, findInputRef, clearFindInputFocusRequest]);
 
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
