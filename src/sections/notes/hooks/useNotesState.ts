@@ -26,7 +26,7 @@ import { NOTES_DEFAULT_EXTENSION, NOTES_EXTENSION_MAP } from '@notes/const';
 import { NotesTrashItemIds } from '@notes/types.ts';
 import { saveNoteFindQueryToStorage } from '@notes/utils';
 
-const NOTE_HISTORY_LIMIT = 50;
+const NOTES_HISTORY_LIMIT = 50;
 const RECENT_NOTES_LIMIT = 10;
 
 interface NotesHistoryState {
@@ -40,19 +40,19 @@ const getNotesHistoryFromStorage = (): number[] => {
     return [];
   }
 
-  const seenNotes = new Set<number>();
+  const seenNoteIds = new Set<number>();
   return notesHistory
     .filter((noteId): noteId is number => Number.isInteger(noteId) && noteId > 0)
     .reverse()
     .filter((noteId) => {
-      if (seenNotes.has(noteId)) {
+      if (seenNoteIds.has(noteId)) {
         return false;
       }
-      seenNotes.add(noteId);
+      seenNoteIds.add(noteId);
       return true;
     })
     .reverse()
-    .slice(-NOTE_HISTORY_LIMIT);
+    .slice(-NOTES_HISTORY_LIMIT);
 };
 
 export const useNotesState = () => {
@@ -72,7 +72,7 @@ export const useNotesState = () => {
     let index = selectedNoteId === null ? noteIds.length - 1 : noteIds.lastIndexOf(selectedNoteId);
 
     if (selectedNoteId !== null && index === -1) {
-      noteIds = [...noteIds, selectedNoteId].slice(-NOTE_HISTORY_LIMIT);
+      noteIds = [...noteIds, selectedNoteId].slice(-NOTES_HISTORY_LIMIT);
       index = noteIds.length - 1;
     }
 
@@ -108,7 +108,7 @@ export const useNotesState = () => {
         const previousIds = currentHistory.ids
           .slice(0, currentHistory.index + 1)
           .filter((historyNoteId) => historyNoteId !== noteId);
-        const ids = [...previousIds, noteId].slice(-NOTE_HISTORY_LIMIT);
+        const ids = [...previousIds, noteId].slice(-NOTES_HISTORY_LIMIT);
         saveNotesHistory({ ids, index: ids.length - 1 });
       }
 
@@ -445,14 +445,14 @@ export const useNotesState = () => {
     collectNotes(rootFolder);
     collectNotes(trashFolder);
 
-    const seen = new Set<number>();
+    const seenNoteIds = new Set<number>();
     return [...notesHistoryState.ids]
       .reverse()
       .filter((noteId) => {
-        if (seen.has(noteId)) {
+        if (seenNoteIds.has(noteId)) {
           return false;
         }
-        seen.add(noteId);
+        seenNoteIds.add(noteId);
         return true;
       })
       .map((noteId) => notesById.get(noteId))
