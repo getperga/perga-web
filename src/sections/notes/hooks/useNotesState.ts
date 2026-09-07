@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import type {
   NotesFolderResponseDTO,
   NoteDTO,
+  NoteMetaDTO,
   NotesExportTypeDTO,
   NotesExportTargetDTO,
 } from '@api/notes';
@@ -19,10 +20,40 @@ import {
 } from '@api/notes';
 import { REFRESH_EVENT } from '@common/events';
 import { downloadFile } from '@common/utils/download_utils';
+import Storage from '@common/utils/storage';
 import { StorageKeys } from '@common/utils/storage_keys';
 import { NOTES_DEFAULT_EXTENSION, NOTES_EXTENSION_MAP } from '@notes/const';
 import { NotesTrashItemIds } from '@notes/types.ts';
 import { saveNoteFindQueryToStorage } from '@notes/utils';
+
+const NOTES_HISTORY_LIMIT = 50;
+const RECENT_NOTES_LIMIT = 10;
+
+interface NotesHistoryState {
+  ids: number[];
+  index: number;
+}
+
+const getNotesHistoryFromStorage = (): number[] => {
+  const notesHistory = Storage.getJSON<unknown>(StorageKeys.NotesHistory, []);
+  if (!Array.isArray(notesHistory)) {
+    return [];
+  }
+
+  const seenNoteIds = new Set<number>();
+  return notesHistory
+    .filter((noteId): noteId is number => Number.isInteger(noteId) && noteId > 0)
+    .reverse()
+    .filter((noteId) => {
+      if (seenNoteIds.has(noteId)) {
+        return false;
+      }
+      seenNoteIds.add(noteId);
+      return true;
+    })
+    .reverse()
+    .slice(-NOTES_HISTORY_LIMIT);
+};
 
 export const useNotesState = () => {
   const [rootFolder, setRootFolder] = useState<NotesFolderResponseDTO | null>(null);
@@ -32,11 +63,26 @@ export const useNotesState = () => {
     noteIds: [],
   });
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(() => {
-    const saved = localStorage.getItem(StorageKeys.NotesSelectedNoteId);
-    return saved ? parseInt(saved, 10) : null;
+    const saved = Storage.get(StorageKeys.NotesSelectedNoteId);
+    const parsed = saved ? Number.parseInt(saved, 10) : Number.NaN;
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   });
+  const [notesHistoryState, setNotesHistoryState] = useState<NotesHistoryState>(() => {
+    let noteIds = getNotesHistoryFromStorage();
+    let index = selectedNoteId === null ? noteIds.length - 1 : noteIds.lastIndexOf(selectedNoteId);
+
+    if (selectedNoteId !== null && index === -1) {
+      noteIds = [...noteIds, selectedNoteId].slice(-NOTES_HISTORY_LIMIT);
+      index = noteIds.length - 1;
+    }
+
+    return { ids: noteIds, index };
+  });
+  const notesHistoryRef = useRef(notesHistoryState);
   const [selectedNote, setSelectedNote] = useState<NoteDTO | null>(null);
   const [focusTrigger, setFocusTrigger] = useState(0);
+  const [titleFocusNoteId, setTitleFocusNoteId] = useState<number | null>(null);
+  const [findInputFocusNoteId, setFindInputFocusNoteId] = useState<number | null>(null);
   const [findQueryTrigger, setFindQueryTrigger] = useState(0);
 
   // use ref to avoid infinite loop when updating selectedNote in handleUpdateNote
@@ -44,6 +90,54 @@ export const useNotesState = () => {
   useEffect(() => {
     selectedNoteRef.current = selectedNote;
   }, [selectedNote]);
+
+  const saveNotesHistory = useCallback((nextHistory: NotesHistoryState) => {
+    notesHistoryRef.current = nextHistory;
+    setNotesHistoryState(nextHistory);
+  }, []);
+
+  const selectNote = useCallback(
+    (noteId: number | null) => {
+      if (noteId === null) {
+        setSelectedNoteId(null);
+        return;
+      }
+
+      const currentHistory = notesHistoryRef.current;
+      if (currentHistory.ids[currentHistory.index] !== noteId) {
+        const previousIds = currentHistory.ids
+          .slice(0, currentHistory.index + 1)
+          .filter((historyNoteId) => historyNoteId !== noteId);
+        const ids = [...previousIds, noteId].slice(-NOTES_HISTORY_LIMIT);
+        saveNotesHistory({ ids, index: ids.length - 1 });
+      }
+
+      setSelectedNoteId(noteId);
+    },
+    [saveNotesHistory],
+  );
+
+  const openPreviousNote = useCallback(() => {
+    const currentHistory = notesHistoryRef.current;
+    if (currentHistory.index <= 0) {
+      return;
+    }
+
+    const index = currentHistory.index - 1;
+    saveNotesHistory({ ...currentHistory, index });
+    setSelectedNoteId(currentHistory.ids[index] ?? null);
+  }, [saveNotesHistory]);
+
+  const openNextNote = useCallback(() => {
+    const currentHistory = notesHistoryRef.current;
+    if (currentHistory.index >= currentHistory.ids.length - 1) {
+      return;
+    }
+
+    const index = currentHistory.index + 1;
+    saveNotesHistory({ ...currentHistory, index });
+    setSelectedNoteId(currentHistory.ids[index] ?? null);
+  }, [saveNotesHistory]);
 
   const fetchFolders = useCallback(async () => {
     try {
@@ -108,13 +202,14 @@ export const useNotesState = () => {
     async (folderId: number) => {
       try {
         const response = await createNote({ body: '', folder_id: folderId });
-        setSelectedNoteId(response.data.id);
+        selectNote(response.data.id);
+        setTitleFocusNoteId(response.data.id);
         await fetchFolders();
       } catch (error) {
         console.error('Error creating note:', error);
       }
     },
-    [fetchFolders],
+    [fetchFolders, selectNote],
   );
 
   const handleMoveNoteToTrash = useCallback(
@@ -138,14 +233,14 @@ export const useNotesState = () => {
       await emptyTrash();
 
       if (selectedNoteId && trashItemIds.noteIds.includes(selectedNoteId)) {
-        setSelectedNoteId(null);
+        selectNote(null);
       }
 
       await fetchFolders();
     } catch (error) {
       console.error('Error emptying trash:', error);
     }
-  }, [fetchFolders, selectedNoteId, trashItemIds.noteIds]);
+  }, [fetchFolders, selectedNoteId, selectNote, trashItemIds.noteIds]);
 
   const handleMoveFolder = useCallback(
     async (folderId: number, parentId: number) => {
@@ -293,11 +388,15 @@ export const useNotesState = () => {
   // save selectedNoteId to localStorage
   useEffect(() => {
     if (selectedNoteId) {
-      localStorage.setItem(StorageKeys.NotesSelectedNoteId, selectedNoteId.toString());
+      Storage.set(StorageKeys.NotesSelectedNoteId, selectedNoteId.toString());
     } else {
-      localStorage.removeItem(StorageKeys.NotesSelectedNoteId);
+      Storage.remove(StorageKeys.NotesSelectedNoteId);
     }
   }, [selectedNoteId]);
+
+  useEffect(() => {
+    Storage.setJSON(StorageKeys.NotesHistory, notesHistoryState.ids);
+  }, [notesHistoryState.ids]);
 
   // Refresh listener
   useEffect(() => {
@@ -315,11 +414,51 @@ export const useNotesState = () => {
     setFocusTrigger((prev) => prev + 1);
   }, []);
 
-  const openNoteFromSearch = useCallback((noteId: number, query: string) => {
-    saveNoteFindQueryToStorage(noteId, query);
-    setSelectedNoteId(noteId);
-    setFindQueryTrigger((prev) => prev + 1);
+  const clearTitleFocusRequest = useCallback((noteId: number) => {
+    setTitleFocusNoteId((pendingNoteId) => (pendingNoteId === noteId ? null : pendingNoteId));
   }, []);
+
+  const clearFindInputFocusRequest = useCallback((noteId: number) => {
+    setFindInputFocusNoteId((pendingNoteId) => (pendingNoteId === noteId ? null : pendingNoteId));
+  }, []);
+
+  const openNoteFromSearch = useCallback(
+    (noteId: number, query: string) => {
+      saveNoteFindQueryToStorage(noteId, query);
+      selectNote(noteId);
+      setFindInputFocusNoteId(noteId);
+      setFindQueryTrigger((prev) => prev + 1);
+    },
+    [selectNote],
+  );
+
+  const recentNotes = useMemo(() => {
+    const notesById = new Map<number, NoteMetaDTO>();
+    const collectNotes = (folder: NotesFolderResponseDTO | null) => {
+      if (!folder) {
+        return;
+      }
+      folder.notes.forEach((note) => notesById.set(note.id, note));
+      folder.subfolders.forEach(collectNotes);
+    };
+
+    collectNotes(rootFolder);
+    collectNotes(trashFolder);
+
+    const seenNoteIds = new Set<number>();
+    return [...notesHistoryState.ids]
+      .reverse()
+      .filter((noteId) => {
+        if (seenNoteIds.has(noteId)) {
+          return false;
+        }
+        seenNoteIds.add(noteId);
+        return true;
+      })
+      .map((noteId) => notesById.get(noteId))
+      .filter((note): note is NoteMetaDTO => note !== undefined)
+      .slice(0, RECENT_NOTES_LIMIT);
+  }, [notesHistoryState.ids, rootFolder, trashFolder]);
 
   return {
     rootFolder,
@@ -336,9 +475,18 @@ export const useNotesState = () => {
     handleEmptyTrash,
     handleExportNotes,
     handleImportNotes,
-    setSelectedNoteId,
+    setSelectedNoteId: selectNote,
+    recentNotes,
+    canOpenPreviousNote: notesHistoryState.index > 0,
+    canOpenNextNote: notesHistoryState.index < notesHistoryState.ids.length - 1,
+    openPreviousNote,
+    openNextNote,
     focusEditor,
     focusTrigger,
+    titleFocusNoteId,
+    clearTitleFocusRequest,
+    findInputFocusNoteId,
+    clearFindInputFocusRequest,
     selectedNote,
     selectedNoteId,
     trashItemIds,

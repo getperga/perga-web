@@ -3,6 +3,7 @@ import type { Editor } from '@tiptap/react';
 
 import { Icon } from '@common/components';
 import { editorIcons } from '../notes_editor_icons';
+import { normalizeLinkHref } from '../extensions/noteLink';
 
 interface MenuBarProps {
   editor: Editor | null;
@@ -15,7 +16,7 @@ export const NotesEditorMenuBar: React.FC<MenuBarProps> = ({ editor, onFindClick
   }
 
   const setLink = () => {
-    const previousUrl = editor.getAttributes('link').href;
+    const previousUrl = editor.getAttributes('link').href ?? '';
     const url = window.prompt('URL', previousUrl);
 
     // cancelled
@@ -23,14 +24,16 @@ export const NotesEditorMenuBar: React.FC<MenuBarProps> = ({ editor, onFindClick
       return;
     }
 
+    const href = normalizeLinkHref(url);
+
     // empty
-    if (url === '') {
+    if (href === '') {
       editor.chain().focus().extendMarkRange('link').unsetLink().run();
       return;
     }
 
     // update link
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    editor.chain().focus().extendMarkRange('link').setLink({ href }).run();
   };
 
   const buttons = [

@@ -1,3 +1,5 @@
+import checkboxCompletedIcon from './checkbox-completed.svg';
+
 export const icons = {
   // sidebar
   planner: (
@@ -185,8 +187,8 @@ export const icons = {
   ),
 
   checkboxCompleted: (
-    <svg xmlns="http://www.w3.org/2000/svg" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+      <image href={checkboxCompletedIcon} width="24" height="24" />
     </svg>
   ),
   checkboxDropped: (

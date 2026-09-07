@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.1] - 2026-09-07
+
+### Added
+
+- Recent notes history and navigation
+- noteLink tiptap editor extension
+
+### Fixed
+
+- notes editor checkboxes styles
+
 ## [1.2.0] - 2026-07-26
 
 ### Added
