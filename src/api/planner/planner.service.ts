@@ -28,12 +28,13 @@ export const getItemsByDays = (days: string[]) =>
       indexes: null, // Prevents using square brackets in array params
     },
   });
-export const getItemsByRange = (startDate: string, daysCount: number) =>
+export const getItemsByRange = (startDate: string, daysCount: number, signal?: AbortSignal) =>
   axios.get<Record<string, PlannerDayItemDTO[]>>(`${DAYS_API_URL}/range/`, {
     params: {
       start_date: startDate,
       days_count: daysCount,
     },
+    signal,
   });
 
 export const createPlannerDayItem = (item: PlannerDayItemCreateDTO) =>
@@ -58,6 +59,7 @@ export const getPlannerAgendas = (
   agendaTypes: string[],
   selectedDay: string | null = null,
   withCounts: boolean = false,
+  signal?: AbortSignal,
 ) =>
   axios.get<PlannerAgendaDTO[]>(AGENDAS_API_URL, {
     params: {
@@ -68,6 +70,7 @@ export const getPlannerAgendas = (
     paramsSerializer: {
       indexes: null, // Prevents using square brackets in array params
     },
+    signal,
   });
 
 export const createPlannerAgenda = (agenda: PlannerAgendaCreateDTO) =>
@@ -88,12 +91,13 @@ export const actionPlannerAgenda = (agendaId: number, action: PlannerAgendaActio
   });
 
 // Planner Agendas Items API methods
-export const getItemsByAgendas = (agendaIds: number[]) =>
+export const getItemsByAgendas = (agendaIds: number[], signal?: AbortSignal) =>
   axios.get<Record<number, PlannerAgendaItemDTO[]>>(`${AGENDAS_API_URL}items/`, {
     params: { agenda_ids: agendaIds },
     paramsSerializer: {
       indexes: null, // Prevents using square brackets in array params
     },
+    signal,
   });
 
 export const createPlannerAgendaItem = (item: PlannerAgendaItemCreateDTO) =>

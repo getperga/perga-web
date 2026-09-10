@@ -19,15 +19,19 @@ const { API_BASE_URL } = getConfig();
 const NOTES_API_URL = `${API_BASE_URL}/notes`;
 
 // Notes API methods
-export const getNote = (noteId: number) => axios.get<NoteDTO>(`${NOTES_API_URL}/${noteId}/`);
+export const getNote = (noteId: number, signal?: AbortSignal) =>
+  axios.get<NoteDTO>(`${NOTES_API_URL}/${noteId}/`, { signal });
 
 export const createNote = (note: NoteCreateDTO) => axios.post<NoteDTO>(`${NOTES_API_URL}/`, note);
 
 export const updateNote = (noteId: number, changes: NoteUpdateDTO) =>
   axios.patch<NoteDTO>(`${NOTES_API_URL}/${noteId}/`, changes);
 
-export const searchNotes = (query: string) =>
-  axios.get<NoteSearchResultDTO[]>(`${NOTES_API_URL}/search/`, { params: { query } });
+export const searchNotes = (query: string, signal?: AbortSignal) =>
+  axios.get<NoteSearchResultDTO[]>(`${NOTES_API_URL}/search/`, {
+    params: { query },
+    signal,
+  });
 
 // Notes Folders API methods
 export const getFolders = () =>

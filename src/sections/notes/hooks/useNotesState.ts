@@ -78,18 +78,13 @@ export const useNotesState = () => {
 
     return { ids: noteIds, index };
   });
+  const selectedNoteIdRef = useRef(selectedNoteId);
   const notesHistoryRef = useRef(notesHistoryState);
   const [selectedNote, setSelectedNote] = useState<NoteDTO | null>(null);
   const [focusTrigger, setFocusTrigger] = useState(0);
   const [titleFocusNoteId, setTitleFocusNoteId] = useState<number | null>(null);
   const [findInputFocusNoteId, setFindInputFocusNoteId] = useState<number | null>(null);
   const [findQueryTrigger, setFindQueryTrigger] = useState(0);
-
-  // use ref to avoid infinite loop when updating selectedNote in handleUpdateNote
-  const selectedNoteRef = useRef(selectedNote);
-  useEffect(() => {
-    selectedNoteRef.current = selectedNote;
-  }, [selectedNote]);
 
   const saveNotesHistory = useCallback((nextHistory: NotesHistoryState) => {
     notesHistoryRef.current = nextHistory;
@@ -99,6 +94,7 @@ export const useNotesState = () => {
   const selectNote = useCallback(
     (noteId: number | null) => {
       if (noteId === null) {
+        selectedNoteIdRef.current = null;
         setSelectedNoteId(null);
         return;
       }
@@ -112,6 +108,7 @@ export const useNotesState = () => {
         saveNotesHistory({ ids, index: ids.length - 1 });
       }
 
+      selectedNoteIdRef.current = noteId;
       setSelectedNoteId(noteId);
     },
     [saveNotesHistory],
@@ -124,8 +121,10 @@ export const useNotesState = () => {
     }
 
     const index = currentHistory.index - 1;
+    const noteId = currentHistory.ids[index] ?? null;
     saveNotesHistory({ ...currentHistory, index });
-    setSelectedNoteId(currentHistory.ids[index] ?? null);
+    selectedNoteIdRef.current = noteId;
+    setSelectedNoteId(noteId);
   }, [saveNotesHistory]);
 
   const openNextNote = useCallback(() => {
@@ -135,8 +134,10 @@ export const useNotesState = () => {
     }
 
     const index = currentHistory.index + 1;
+    const noteId = currentHistory.ids[index] ?? null;
     saveNotesHistory({ ...currentHistory, index });
-    setSelectedNoteId(currentHistory.ids[index] ?? null);
+    selectedNoteIdRef.current = noteId;
+    setSelectedNoteId(noteId);
   }, [saveNotesHistory]);
 
   const fetchFolders = useCallback(async () => {
@@ -146,15 +147,6 @@ export const useNotesState = () => {
       setTrashFolder(response.data.trash_folder);
     } catch (error) {
       console.error('Error fetching notes folders:', error);
-    }
-  }, []);
-
-  const fetchNoteContent = useCallback(async (noteId: number) => {
-    try {
-      const response = await getNote(noteId);
-      setSelectedNote(response.data);
-    } catch (error) {
-      console.error('Error fetching note content:', error);
     }
   }, []);
 
@@ -282,7 +274,7 @@ export const useNotesState = () => {
     async (noteId: number, title: string | undefined, body: string | undefined) => {
       try {
         const response = await updateNote(noteId, { title, body });
-        if (selectedNoteRef.current?.id === noteId) {
+        if (selectedNoteIdRef.current === noteId) {
           setSelectedNote(response.data);
         }
         await fetchFolders();
@@ -355,12 +347,22 @@ export const useNotesState = () => {
 
   // fetch selected note
   useEffect(() => {
-    if (selectedNoteId) {
-      void fetchNoteContent(selectedNoteId);
-    } else {
+    if (!selectedNoteId) {
       setSelectedNote(null);
+      return;
     }
-  }, [selectedNoteId, fetchNoteContent]);
+
+    const requestController = new AbortController();
+    getNote(selectedNoteId, requestController.signal)
+      .then((response) => setSelectedNote(response.data))
+      .catch((error) => {
+        if (!requestController.signal.aborted) {
+          console.error('Error fetching note content:', error);
+        }
+      });
+
+    return () => requestController.abort();
+  }, [selectedNoteId]);
 
   useEffect(() => {
     if (!trashFolder) {

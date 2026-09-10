@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import type { PlannerItemStateDTO, PlannerAgendaDTO, PlannerAgendaItemDTO } from '@api/planner';
 import {
@@ -22,6 +22,8 @@ export const usePlannerAgendas = (selectedDate: Date) => {
   >({});
 
   const [dragAgendaItem, setDragAgendaItem] = useState<PlannerAgendaItemDTO | null>(null);
+  const agendasAbortControllerRef = useRef<AbortController | null>(null);
+  const agendaItemsAbortControllerRef = useRef<AbortController | null>(null);
 
   // Lock to prevent multiple updates for the same item
   const updatingItemsRef = useRef<Set<number>>(new Set());
@@ -37,23 +39,41 @@ export const usePlannerAgendas = (selectedDate: Date) => {
       return;
     }
 
+    agendaItemsAbortControllerRef.current?.abort();
+    const requestController = new AbortController();
+    agendaItemsAbortControllerRef.current = requestController;
+
     try {
-      const itemsResponse = await getItemsByAgendas(agendaIds);
+      const itemsResponse = await getItemsByAgendas(agendaIds, requestController.signal);
       const itemsByAgenda = itemsResponse.data;
+
       setPlannerAgendaItems((prev) => ({
         ...prev,
         ...itemsByAgenda,
       }));
     } catch (error) {
-      console.error('Error fetching agenda items:', error);
+      if (!requestController.signal.aborted) {
+        console.error('Error fetching agenda items:', error);
+      }
     }
   }, []);
 
   // Fetch planner agendas and their items
   const fetchAgendasWithItems = useCallback(
     async (date: Date) => {
+      agendasAbortControllerRef.current?.abort();
+      agendaItemsAbortControllerRef.current?.abort();
+
+      const requestController = new AbortController();
+      agendasAbortControllerRef.current = requestController;
+
       try {
-        const response = await getPlannerAgendas(['monthly', 'custom'], formatDateForAPI(date));
+        const response = await getPlannerAgendas(
+          ['monthly', 'custom'],
+          formatDateForAPI(date),
+          false,
+          requestController.signal,
+        );
         const agendas = response.data;
         setPlannerAgendas(agendas);
 
@@ -62,7 +82,9 @@ export const usePlannerAgendas = (selectedDate: Date) => {
           await fetchAgendaItems(agendaIds);
         }
       } catch (error) {
-        console.error('Error fetching planner agendas:', error);
+        if (!requestController.signal.aborted) {
+          console.error('Error fetching planner agendas:', error);
+        }
       }
     },
     [fetchAgendaItems],
@@ -193,21 +215,21 @@ export const usePlannerAgendas = (selectedDate: Date) => {
     }
   };
 
-  const previousMonthRef = useRef(-1);
+  const selectedYear = selectedDate.getFullYear();
+  const selectedMonth = selectedDate.getMonth();
+  const selectedMonthDate = useMemo(
+    () => new Date(selectedYear, selectedMonth, 1),
+    [selectedYear, selectedMonth],
+  );
+
   useEffect(() => {
-    const currentMonth = selectedDate.getMonth();
-    const previousMonth = previousMonthRef.current;
+    void fetchAgendasWithItems(selectedMonthDate);
 
-    // Do not refetch agendas, if month hasn't changed
-    if (currentMonth === previousMonth) {
-      return;
-    }
-
-    fetchAgendasWithItems(selectedDate);
-
-    // Update the previous month ref
-    previousMonthRef.current = currentMonth;
-  }, [selectedDate, fetchAgendasWithItems]);
+    return () => {
+      agendasAbortControllerRef.current?.abort();
+      agendaItemsAbortControllerRef.current?.abort();
+    };
+  }, [selectedMonthDate, fetchAgendasWithItems]);
 
   // Refresh listener
   useEffect(() => {

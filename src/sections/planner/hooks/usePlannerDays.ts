@@ -20,6 +20,7 @@ export const usePlannerDays = (selectedDate: Date) => {
   const { user } = useAuth();
   const [daysItems, setDaysItems] = useState<PlannerDayItemDTO[]>([]);
   const [dragDayItem, setDragDayItem] = useState<PlannerDayItemDTO | null>(null);
+  const daysAbortControllerRef = useRef<AbortController | null>(null);
 
   // Lock to prevent multiple updates for the same item
   const updatingItemsRef = useRef<Set<number>>(new Set());
@@ -31,9 +32,18 @@ export const usePlannerDays = (selectedDate: Date) => {
 
   // Fetch items for PLANNER_DAYS_COUNT days starting from selected date
   const fetchDaysItems = useCallback(async () => {
+    daysAbortControllerRef.current?.abort();
+
+    const requestController = new AbortController();
+    daysAbortControllerRef.current = requestController;
+
     try {
       const selectedDateStr = formatDateForAPI(selectedDate);
-      const response = await getItemsByRange(selectedDateStr, PLANNER_DAYS_COUNT);
+      const response = await getItemsByRange(
+        selectedDateStr,
+        PLANNER_DAYS_COUNT,
+        requestController.signal,
+      );
 
       const combinedItems: PlannerDayItemDTO[] = [];
       Object.values(response.data).forEach((items) => {
@@ -42,7 +52,9 @@ export const usePlannerDays = (selectedDate: Date) => {
 
       setDaysItems(combinedItems);
     } catch (error) {
-      console.error('Error fetching all days:', error);
+      if (!requestController.signal.aborted) {
+        console.error('Error fetching all days:', error);
+      }
     }
   }, [selectedDate]);
 
@@ -210,6 +222,14 @@ export const usePlannerDays = (selectedDate: Date) => {
   useEffect(() => {
     void fetchDaysItems();
   }, [selectedDate, fetchDaysItems]);
+
+  // Abort pending requests on unmount
+  useEffect(
+    () => () => {
+      daysAbortControllerRef.current?.abort();
+    },
+    [],
+  );
 
   // Refresh listener
   useEffect(() => {

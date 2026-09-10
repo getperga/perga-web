@@ -47,6 +47,14 @@ const foldersResponse = {
   },
 };
 
+const deferred = <T>() => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+};
+
 describe('useNotesState note history', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -103,5 +111,24 @@ describe('useNotesState note history', () => {
     expect(result.current.recentNotes.map((note) => note.id)).toEqual([
       11, 12, 10, 9, 8, 7, 6, 5, 4, 3,
     ]);
+  });
+
+  it('aborts the previous request when another note is selected', async () => {
+    const first = deferred<{ data: (typeof notes)[number] & { body: string } }>();
+    const second = deferred<{ data: (typeof notes)[number] & { body: string } }>();
+    apiMocks.getNote.mockImplementation((id: number) =>
+      id === 1 ? first.promise : second.promise,
+    );
+
+    const { result } = renderHook(() => useNotesState());
+
+    act(() => result.current.setSelectedNoteId(1));
+    await waitFor(() => expect(apiMocks.getNote.mock.calls[0]?.[0]).toBe(1));
+    act(() => result.current.setSelectedNoteId(2));
+    await waitFor(() => expect(apiMocks.getNote.mock.calls[1]?.[0]).toBe(2));
+    expect(apiMocks.getNote.mock.calls[0]?.[1].aborted).toBe(true);
+
+    await act(async () => second.resolve({ data: { ...notes[1], body: 'second' } }));
+    expect(result.current.selectedNote?.id).toBe(2);
   });
 });

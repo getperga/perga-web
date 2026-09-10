@@ -1,3 +1,4 @@
+import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,6 +9,7 @@ import { useNotes } from '@notes/context';
 
 const SEARCH_DEBOUNCE_TIMEOUT = 300;
 
+type SearchStatusType = 'idle' | 'loading' | 'success' | 'empty' | 'error';
 interface SearchNavItem {
   path: string;
   label: string;
@@ -46,6 +48,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<NoteSearchResultDTO[]>([]);
+  const [searchStatus, setSearchStatus] = useState<SearchStatusType>('idle');
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const isTyping = query.trim().length > 0;
@@ -55,29 +58,42 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
     if (!isOpen) {
       setQuery('');
       setResults([]);
+      setSearchStatus('idle');
       setSelectedIndex(0);
     }
   }, [isOpen]);
 
   useEffect(() => {
     const trimmedQuery = query.trim();
-    if (!trimmedQuery) {
+    if (!isOpen || !trimmedQuery) {
       setResults([]);
+      setSearchStatus('idle');
       return;
     }
 
+    const requestController = new AbortController();
+    setResults([]);
+    setSearchStatus('loading');
     const timer = setTimeout(() => {
-      searchNotes(trimmedQuery)
+      searchNotes(trimmedQuery, requestController.signal)
         .then((response) => {
           setResults(response.data);
+          setSearchStatus(response.data.length > 0 ? 'success' : 'empty');
         })
         .catch((error) => {
-          console.error('Error searching notes:', error);
+          if (!axios.isCancel(error)) {
+            console.error('Error searching notes:', error);
+            setResults([]);
+            setSearchStatus('error');
+          }
         });
     }, SEARCH_DEBOUNCE_TIMEOUT);
 
-    return () => clearTimeout(timer);
-  }, [query]);
+    return () => {
+      clearTimeout(timer);
+      requestController.abort();
+    };
+  }, [query, isOpen]);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -149,9 +165,11 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
 
         <div className="mt-2 min-h-40 max-h-[60vh] sm:max-h-72 overflow-y-auto">
           {isTyping ? (
-            results.length === 0 ? (
+            searchStatus === 'error' ? (
+              <div className="p-2 text-sm text-text-main/60">Search failed. Please try again.</div>
+            ) : searchStatus === 'empty' ? (
               <div className="p-2 text-sm text-text-main/60">No notes found</div>
-            ) : (
+            ) : searchStatus === 'success' ? (
               results.map((note, index) => (
                 <div
                   key={note.id}
@@ -177,7 +195,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
                   </div>
                 </div>
               ))
-            )
+            ) : null
           ) : (
             <>
               <div className="px-2 pt-1 pb-1 text-xs font-medium text-text-main/50">Sections</div>
