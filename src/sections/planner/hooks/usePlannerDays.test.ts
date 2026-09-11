@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { usePlannerDays } from './usePlannerDays';
+import { clearPlannerDaysCache, usePlannerDays } from './usePlannerDays';
 
 const apiMocks = vi.hoisted(() => ({
   getItemsByRange: vi.fn(),
@@ -34,6 +34,11 @@ const deferred = <T>() => {
 };
 
 describe('usePlannerDays request ordering', () => {
+  beforeEach(() => {
+    clearPlannerDaysCache();
+    vi.clearAllMocks();
+  });
+
   it('aborts the previous request when the selected range changes', async () => {
     const first = deferred<{ data: Record<string, unknown[]> }>();
     const second = deferred<{ data: Record<string, unknown[]> }>();
@@ -55,5 +60,35 @@ describe('usePlannerDays request ordering', () => {
       }),
     );
     expect(result.current.daysItems.map((item) => item.id)).toEqual([2]);
+  });
+
+  it('restores cached items immediately and revalidates them in the background', async () => {
+    const freshResponse = deferred<{ data: Record<string, unknown[]> }>();
+    apiMocks.getItemsByRange
+      .mockResolvedValueOnce({
+        data: {
+          '2026-01-01': [{ id: 1, day: '2026-01-01', text: 'cached', state: 'todo', index: 0 }],
+        },
+      })
+      .mockReturnValueOnce(freshResponse.promise);
+
+    const firstRender = renderHook(() => usePlannerDays(new Date(2026, 0, 1)));
+    await waitFor(() => expect(firstRender.result.current.daysItems[0]?.id).toBe(1));
+    firstRender.unmount();
+
+    const secondRender = renderHook(() => usePlannerDays(new Date(2026, 0, 1)));
+    expect(secondRender.result.current.daysItems[0]?.id).toBe(1);
+    await waitFor(() => expect(apiMocks.getItemsByRange).toHaveBeenCalledTimes(2));
+    expect(secondRender.result.current.isDaysRefreshing).toBe(true);
+
+    await act(async () =>
+      freshResponse.resolve({
+        data: {
+          '2026-01-01': [{ id: 2, day: '2026-01-01', text: 'fresh', state: 'todo', index: 0 }],
+        },
+      }),
+    );
+    expect(secondRender.result.current.daysItems[0]?.id).toBe(2);
+    expect(secondRender.result.current.isDaysRefreshing).toBe(false);
   });
 });

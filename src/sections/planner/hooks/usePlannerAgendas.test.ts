@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { createElement, StrictMode, type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { usePlannerAgendas } from './usePlannerAgendas';
+import { invalidatePlannerAgendasCache, usePlannerAgendas } from './usePlannerAgendas';
 
 const apiMocks = vi.hoisted(() => ({
   getPlannerAgendas: vi.fn(),
@@ -24,6 +24,10 @@ vi.mock('@common/contexts/toast/useToast', () => ({
   useToast: () => ({ showError: vi.fn() }),
 }));
 
+vi.mock('@common/contexts/auth/useAuth', () => ({
+  useAuth: () => ({ user: { email: 'test@example.com' } }),
+}));
+
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((resolvePromise) => {
@@ -43,6 +47,7 @@ const agenda = (id: number, name: string) => ({
 
 describe('usePlannerAgendas request ordering', () => {
   beforeEach(() => {
+    invalidatePlannerAgendasCache();
     vi.clearAllMocks();
   });
 
@@ -93,5 +98,30 @@ describe('usePlannerAgendas request ordering', () => {
 
     rerender({ date: new Date(2026, 0, 15) });
     expect(apiMocks.getPlannerAgendas).toHaveBeenCalledTimes(requestCount);
+  });
+
+  it('restores cached agendas and items before background revalidation finishes', async () => {
+    const freshAgendas = deferred<{ data: ReturnType<typeof agenda>[] }>();
+    apiMocks.getPlannerAgendas
+      .mockResolvedValueOnce({ data: [agenda(1, 'January 2026')] })
+      .mockReturnValueOnce(freshAgendas.promise);
+    apiMocks.getItemsByAgendas.mockResolvedValue({
+      data: { 1: [{ id: 10, agenda_id: 1, text: 'cached', state: 'todo', index: 0 }] },
+    });
+
+    const firstRender = renderHook(() => usePlannerAgendas(new Date(2026, 0, 1)));
+    await waitFor(() => expect(firstRender.result.current.plannerAgendaItems[1]?.[0]?.id).toBe(10));
+    firstRender.unmount();
+
+    const secondRender = renderHook(() => usePlannerAgendas(new Date(2026, 0, 1)));
+    expect(secondRender.result.current.plannerAgendas[0]?.id).toBe(1);
+    expect(secondRender.result.current.plannerAgendaItems[1]?.[0]?.id).toBe(10);
+    await waitFor(() => expect(apiMocks.getPlannerAgendas).toHaveBeenCalledTimes(2));
+    expect(secondRender.result.current.isAgendasRefreshing).toBe(true);
+
+    await act(async () => freshAgendas.resolve({ data: [] }));
+    expect(secondRender.result.current.plannerAgendas).toEqual([]);
+    expect(secondRender.result.current.plannerAgendaItems).toEqual({});
+    expect(secondRender.result.current.isAgendasRefreshing).toBe(false);
   });
 });
