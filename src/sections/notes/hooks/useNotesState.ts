@@ -34,6 +34,10 @@ interface NotesHistoryState {
   index: number;
 }
 
+interface UseNotesStateOptions {
+  loadSelectedNote?: boolean;
+}
+
 const getNotesHistoryFromStorage = (): number[] => {
   const notesHistory = Storage.getJSON<unknown>(StorageKeys.NotesHistory, []);
   if (!Array.isArray(notesHistory)) {
@@ -55,7 +59,7 @@ const getNotesHistoryFromStorage = (): number[] => {
     .slice(-NOTES_HISTORY_LIMIT);
 };
 
-export const useNotesState = () => {
+export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions = {}) => {
   const [rootFolder, setRootFolder] = useState<NotesFolderResponseDTO | null>(null);
   const [trashFolder, setTrashFolder] = useState<NotesFolderResponseDTO | null>(null);
   const [trashItemIds, setTrashItemIds] = useState<NotesTrashItemIds>({
@@ -347,7 +351,7 @@ export const useNotesState = () => {
 
   // fetch selected note
   useEffect(() => {
-    if (!selectedNoteId) {
+    if (!loadSelectedNote || !selectedNoteId) {
       setSelectedNote(null);
       return;
     }
@@ -362,7 +366,7 @@ export const useNotesState = () => {
       });
 
     return () => requestController.abort();
-  }, [selectedNoteId]);
+  }, [loadSelectedNote, selectedNoteId]);
 
   useEffect(() => {
     if (!trashFolder) {

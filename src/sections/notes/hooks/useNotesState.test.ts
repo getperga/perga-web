@@ -7,6 +7,7 @@ import { useNotesState } from './useNotesState';
 const apiMocks = vi.hoisted(() => ({
   getFolders: vi.fn(),
   getNote: vi.fn(),
+  updateNote: vi.fn(),
 }));
 
 vi.mock('@api/notes', () => ({
@@ -15,7 +16,7 @@ vi.mock('@api/notes', () => ({
   createFolder: vi.fn(),
   updateFolder: vi.fn(),
   createNote: vi.fn(),
-  updateNote: vi.fn(),
+  updateNote: apiMocks.updateNote,
   emptyTrash: vi.fn(),
   exportNotes: vi.fn(),
   importNotes: vi.fn(),
@@ -62,6 +63,17 @@ describe('useNotesState note history', () => {
     apiMocks.getFolders.mockResolvedValue({ data: foldersResponse });
     apiMocks.getNote.mockImplementation((id: number) =>
       Promise.resolve({ data: { ...notes[id - 1], body: '' } }),
+    );
+    apiMocks.updateNote.mockImplementation(
+      (id: number, changes: { title?: string; body?: string }) =>
+        Promise.resolve({
+          data: {
+            ...notes[id - 1],
+            title: changes.title ?? notes[id - 1]?.title ?? '',
+            body: changes.body ?? '',
+            updated_dt: '2026-02-01T00:00:00Z',
+          },
+        }),
     );
   });
 
@@ -130,5 +142,30 @@ describe('useNotesState note history', () => {
 
     await act(async () => second.resolve({ data: { ...notes[1], body: 'second' } }));
     expect(result.current.selectedNote?.id).toBe(2);
+  });
+
+  it('reloads the folders tree after updating or renaming a note', async () => {
+    const { result } = renderHook(() => useNotesState());
+    await waitFor(() => expect(result.current.rootFolder).not.toBeNull());
+    expect(apiMocks.getFolders).toHaveBeenCalledTimes(1);
+
+    await act(async () => result.current.handleUpdateNote(2, undefined, '<p>Body</p>'));
+    expect(apiMocks.getFolders).toHaveBeenCalledTimes(2);
+
+    await act(async () => result.current.handleRenameNote(2, 'Updated title'));
+    expect(apiMocks.getFolders).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not load selected note content while the editor route is inactive', async () => {
+    localStorage.setItem(StorageKeys.NotesSelectedNoteId, '1');
+    const { rerender } = renderHook(({ loadSelectedNote }) => useNotesState({ loadSelectedNote }), {
+      initialProps: { loadSelectedNote: false },
+    });
+
+    await waitFor(() => expect(apiMocks.getFolders).toHaveBeenCalledTimes(1));
+    expect(apiMocks.getNote).not.toHaveBeenCalled();
+
+    rerender({ loadSelectedNote: true });
+    await waitFor(() => expect(apiMocks.getNote).toHaveBeenCalledWith(1, expect.any(AbortSignal)));
   });
 });
