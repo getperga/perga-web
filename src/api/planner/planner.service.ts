@@ -10,6 +10,7 @@ import type {
   PlannerAgendaUpdateDTO,
   PlannerAgendaActionDTO,
   PlannerAgendaItemDTO,
+  PlannerAgendasWithItemsDTO,
   PlannerAgendaItemCreateDTO,
   PlannerAgendaItemUpdateDTO,
 } from '@api/planner/planner.dto';
@@ -73,6 +74,23 @@ export const getPlannerAgendas = (
     signal,
   });
 
+export const getPlannerAgendasWithItems = (
+  agendaTypes: string[],
+  selectedDay: string | null = null,
+  signal?: AbortSignal,
+) =>
+  axios.get<PlannerAgendasWithItemsDTO>(AGENDAS_API_URL, {
+    params: {
+      agenda_types: agendaTypes,
+      selected_day: selectedDay,
+      with_items: true,
+    },
+    paramsSerializer: {
+      indexes: null,
+    },
+    signal,
+  });
+
 export const createPlannerAgenda = (agenda: PlannerAgendaCreateDTO) =>
   axios.post<PlannerAgendaDTO>(AGENDAS_API_URL, agenda);
 
@@ -88,16 +106,6 @@ export const reorderPlannerAgendas = (orderedAgendaIds: number[]) =>
 export const actionPlannerAgenda = (agendaId: number, action: PlannerAgendaActionDTO) =>
   axios.post(`${AGENDAS_API_URL}${agendaId}/action/`, {
     action,
-  });
-
-// Planner Agendas Items API methods
-export const getItemsByAgendas = (agendaIds: number[], signal?: AbortSignal) =>
-  axios.get<Record<number, PlannerAgendaItemDTO[]>>(`${AGENDAS_API_URL}items/`, {
-    params: { agenda_ids: agendaIds },
-    paramsSerializer: {
-      indexes: null, // Prevents using square brackets in array params
-    },
-    signal,
   });
 
 export const createPlannerAgendaItem = (item: PlannerAgendaItemCreateDTO) =>

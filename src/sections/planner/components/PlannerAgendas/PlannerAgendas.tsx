@@ -38,7 +38,7 @@ interface AgendasProps {
     nextMonth: PlannerAgendaDTO;
     customAgendas: PlannerAgendaDTO[];
   };
-  fetchAgendaItems: (agendaIds: number[]) => Promise<void> | void;
+  fetchAgendasBySelectedDate: () => Promise<void> | void;
 }
 
 const PlannerAgendas: React.FC<AgendasProps> = ({
@@ -56,7 +56,7 @@ const PlannerAgendas: React.FC<AgendasProps> = ({
   onCopyAgendaItemToDay,
   selectedDate,
   copyAgendasMap,
-  fetchAgendaItems,
+  fetchAgendasBySelectedDate,
 }: AgendasProps) => {
   const { collapsedAgendas, setCollapsedAgendas } = useCollapsedAgendas();
 
@@ -92,9 +92,9 @@ const PlannerAgendas: React.FC<AgendasProps> = ({
   const handleAction = async (agenda: PlannerAgendaDTO, action: PlannerAgendaActionDTO) => {
     try {
       await actionPlannerAgenda(agenda.id, action);
-      await fetchAgendaItems([agenda.id]);
-    } catch (e) {
-      console.error('Agenda action failed', e);
+      await fetchAgendasBySelectedDate();
+    } catch (error) {
+      console.error('Agenda action failed', error);
       showError('Failed to perform action');
     }
   };

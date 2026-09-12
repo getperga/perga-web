@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import type { PlannerItemStateDTO, PlannerAgendaDTO, PlannerAgendaItemDTO } from '@api/planner';
 import {
-  getPlannerAgendas,
-  getItemsByAgendas,
+  getPlannerAgendasWithItems,
   createPlannerAgendaItem,
   updatePlannerAgendaItem,
   deletePlannerAgendaItem,
@@ -48,7 +47,6 @@ export const usePlannerAgendas = (selectedDate: Date) => {
 
   const [dragAgendaItem, setDragAgendaItem] = useState<PlannerAgendaItemDTO | null>(null);
   const agendasAbortControllerRef = useRef<AbortController | null>(null);
-  const agendaItemsAbortControllerRef = useRef<AbortController | null>(null);
 
   // Lock to prevent multiple updates for the same item
   const updatingItemsRef = useRef<Set<number>>(new Set());
@@ -58,20 +56,11 @@ export const usePlannerAgendas = (selectedDate: Date) => {
   const currentItemsOrder = useRef<Map<number, number[]>>(new Map());
   const updatedItemsOrder = useRef<Map<number, number[]>>(new Map());
 
-  const writeCache = useCallback(
+  const updatePlannerAgendasCache = useCallback(
     (agendas: PlannerAgendaDTO[], items: Record<number, PlannerAgendaItemDTO[]>) => {
       plannerAgendasCache.set(cacheKey, { agendas, items });
     },
     [cacheKey],
-  );
-
-  const setAgendasAndCache = useCallback(
-    (agendas: PlannerAgendaDTO[]) => {
-      plannerAgendasRef.current = agendas;
-      setPlannerAgendas(agendas);
-      writeCache(agendas, plannerAgendaItemsRef.current);
-    },
-    [writeCache],
   );
 
   const setAgendaItemsAndCache = useCallback(
@@ -90,74 +79,37 @@ export const usePlannerAgendas = (selectedDate: Date) => {
       }
       plannerAgendaItemsRef.current = nextItems;
       setPlannerAgendaItems(nextItems);
-      writeCache(plannerAgendasRef.current, nextItems);
+      updatePlannerAgendasCache(plannerAgendasRef.current, nextItems);
     },
-    [cacheKey, writeCache],
-  );
-
-  // Fetch items only for specific agendas
-  const fetchAgendaItems = useCallback(
-    async (agendaIds: number[]) => {
-      if (!agendaIds?.length) {
-        return;
-      }
-
-      agendaItemsAbortControllerRef.current?.abort();
-      const requestController = new AbortController();
-      agendaItemsAbortControllerRef.current = requestController;
-
-      try {
-        const itemsResponse = await getItemsByAgendas(agendaIds, requestController.signal);
-        const itemsByAgenda = itemsResponse.data;
-
-        setAgendaItemsAndCache((prev) => ({
-          ...prev,
-          ...itemsByAgenda,
-        }));
-      } catch (error) {
-        if (!requestController.signal.aborted) {
-          console.error('Error fetching agenda items:', error);
-        }
-      }
-    },
-    [setAgendaItemsAndCache],
+    [cacheKey, updatePlannerAgendasCache],
   );
 
   // Fetch planner agendas and their items
   const fetchAgendasWithItems = useCallback(
     async (date: Date) => {
       agendasAbortControllerRef.current?.abort();
-      agendaItemsAbortControllerRef.current?.abort();
 
       const requestController = new AbortController();
       agendasAbortControllerRef.current = requestController;
       setIsAgendasRefreshing(true);
 
       try {
-        const response = await getPlannerAgendas(
+        const response = await getPlannerAgendasWithItems(
           ['monthly', 'custom'],
           formatDateForAPI(date),
-          false,
           requestController.signal,
         );
-        const agendas = response.data;
-        setAgendasAndCache(agendas);
 
-        if (agendas.length > 0) {
-          const agendaIds = agendas.map((agenda) => agenda.id);
-          const agendaIdSet = new Set(agendaIds);
-          setAgendaItemsAndCache((currentItems) =>
-            Object.fromEntries(
-              Object.entries(currentItems).filter(([agendaId]) =>
-                agendaIdSet.has(Number(agendaId)),
-              ),
-            ),
-          );
-          await fetchAgendaItems(agendaIds);
-        } else {
-          setAgendaItemsAndCache({});
-          writeCache(agendas, {});
+        if (requestController.signal.aborted) {
+          return;
         }
+
+        const { agendas, items } = response.data;
+        plannerAgendasRef.current = agendas;
+        plannerAgendaItemsRef.current = items;
+        setPlannerAgendas(agendas);
+        setPlannerAgendaItems(items);
+        updatePlannerAgendasCache(agendas, items);
       } catch (error) {
         if (!requestController.signal.aborted) {
           console.error('Error fetching planner agendas:', error);
@@ -168,7 +120,12 @@ export const usePlannerAgendas = (selectedDate: Date) => {
         }
       }
     },
-    [fetchAgendaItems, setAgendaItemsAndCache, setAgendasAndCache, writeCache],
+    [updatePlannerAgendasCache],
+  );
+
+  const fetchAgendasBySelectedDate = useCallback(
+    () => fetchAgendasWithItems(selectedDate),
+    [fetchAgendasWithItems, selectedDate],
   );
 
   const handleAddAgendaItem = async (agendaId: number, text: string) => {
@@ -323,7 +280,6 @@ export const usePlannerAgendas = (selectedDate: Date) => {
 
     return () => {
       agendasAbortControllerRef.current?.abort();
-      agendaItemsAbortControllerRef.current?.abort();
     };
   }, [cacheKey, selectedMonthDate, fetchAgendasWithItems]);
 
@@ -415,6 +371,6 @@ export const usePlannerAgendas = (selectedDate: Date) => {
     handleCopyAgendaItem,
     handleMoveAgendaItem,
     copyAgendasMap,
-    fetchAgendaItems,
+    fetchAgendasBySelectedDate,
   };
 };
