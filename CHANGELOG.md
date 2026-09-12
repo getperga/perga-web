@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.2] - 2026-09-12
+
+### Added
+
+- TtlCache util class
+
+### Fixed
+
+- Abort duplicated api requests
+- Use cache for planner agendas and items
+
 ## [1.2.1] - 2026-09-07
 
 ### Added
