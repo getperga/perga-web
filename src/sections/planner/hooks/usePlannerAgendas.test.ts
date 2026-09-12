@@ -5,11 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { invalidatePlannerAgendasCache, usePlannerAgendas } from './usePlannerAgendas';
 
 const apiMocks = vi.hoisted(() => ({
-  getAgendasWithItems: vi.fn(),
+  getPlannerAgendasWithItems: vi.fn(),
 }));
 
 vi.mock('@api/planner', () => ({
-  getAgendasWithItems: apiMocks.getAgendasWithItems,
+  getPlannerAgendasWithItems: apiMocks.getPlannerAgendasWithItems,
   createPlannerAgendaItem: vi.fn(),
   updatePlannerAgendaItem: vi.fn(),
   deletePlannerAgendaItem: vi.fn(),
@@ -57,18 +57,18 @@ describe('usePlannerAgendas request ordering', () => {
       data: { agendas: ReturnType<typeof agenda>[]; items: Record<number, unknown[]> };
     }>();
 
-    apiMocks.getAgendasWithItems
+    apiMocks.getPlannerAgendasWithItems
       .mockReturnValueOnce(oldResponse.promise)
       .mockReturnValueOnce(newResponse.promise);
 
     const { result, rerender } = renderHook(({ date }) => usePlannerAgendas(date), {
       initialProps: { date: new Date(2026, 0, 1) },
     });
-    await waitFor(() => expect(apiMocks.getAgendasWithItems).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.getPlannerAgendasWithItems).toHaveBeenCalledTimes(1));
 
     rerender({ date: new Date(2026, 1, 1) });
-    await waitFor(() => expect(apiMocks.getAgendasWithItems).toHaveBeenCalledTimes(2));
-    expect(apiMocks.getAgendasWithItems.mock.calls[0]?.[2].aborted).toBe(true);
+    await waitFor(() => expect(apiMocks.getPlannerAgendasWithItems).toHaveBeenCalledTimes(2));
+    expect(apiMocks.getPlannerAgendasWithItems.mock.calls[0]?.[2].aborted).toBe(true);
     await act(async () =>
       newResponse.resolve({
         data: {
@@ -93,7 +93,7 @@ describe('usePlannerAgendas request ordering', () => {
   });
 
   it('loads agendas in StrictMode and does not refetch within the same month', async () => {
-    apiMocks.getAgendasWithItems.mockResolvedValue({
+    apiMocks.getPlannerAgendasWithItems.mockResolvedValue({
       data: { agendas: [agenda(1, 'January 2026')], items: { 1: [] } },
     });
 
@@ -104,17 +104,17 @@ describe('usePlannerAgendas request ordering', () => {
     });
 
     await waitFor(() => expect(result.current.plannerAgendas.map(({ id }) => id)).toEqual([1]));
-    const requestCount = apiMocks.getAgendasWithItems.mock.calls.length;
+    const requestCount = apiMocks.getPlannerAgendasWithItems.mock.calls.length;
 
     rerender({ date: new Date(2026, 0, 15) });
-    expect(apiMocks.getAgendasWithItems).toHaveBeenCalledTimes(requestCount);
+    expect(apiMocks.getPlannerAgendasWithItems).toHaveBeenCalledTimes(requestCount);
   });
 
   it('restores cached agendas and items before background revalidation finishes', async () => {
     const freshResponse = deferred<{
       data: { agendas: ReturnType<typeof agenda>[]; items: Record<number, unknown[]> };
     }>();
-    apiMocks.getAgendasWithItems
+    apiMocks.getPlannerAgendasWithItems
       .mockResolvedValueOnce({
         data: {
           agendas: [agenda(1, 'January 2026')],
@@ -130,7 +130,7 @@ describe('usePlannerAgendas request ordering', () => {
     const secondRender = renderHook(() => usePlannerAgendas(new Date(2026, 0, 1)));
     expect(secondRender.result.current.plannerAgendas[0]?.id).toBe(1);
     expect(secondRender.result.current.plannerAgendaItems[1]?.[0]?.id).toBe(10);
-    await waitFor(() => expect(apiMocks.getAgendasWithItems).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(apiMocks.getPlannerAgendasWithItems).toHaveBeenCalledTimes(2));
     expect(secondRender.result.current.isAgendasRefreshing).toBe(true);
 
     await act(async () => freshResponse.resolve({ data: { agendas: [], items: {} } }));
