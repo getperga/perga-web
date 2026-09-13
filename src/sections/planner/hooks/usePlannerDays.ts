@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import type { PlannerItemStateDTO, PlannerDayItemDTO } from '@api/planner';
 import {
@@ -10,16 +10,30 @@ import {
   copyPlannerDayItem,
   snoozePlannerDayItem,
 } from '@api/planner';
+import { useAuth } from '@common/contexts/auth/useAuth';
 import { useToast } from '@common/contexts/toast/useToast';
 import { REFRESH_EVENT } from '@common/events';
-import { useAuth } from '@common/contexts/auth/useAuth';
 import { formatDateForAPI, getNextDay } from '@common/utils/date_utils';
+import { TtlCache } from '@common/utils/ttl_cache';
 import { PLANNER_DAYS_COUNT } from '@planner/const';
+
+const plannerDaysCache = new TtlCache<PlannerDayItemDTO[]>();
+
+export const clearPlannerDaysCache = () => plannerDaysCache.clear();
 
 export const usePlannerDays = (selectedDate: Date) => {
   const { user } = useAuth();
-  const [daysItems, setDaysItems] = useState<PlannerDayItemDTO[]>([]);
+  const selectedDateStr = formatDateForAPI(selectedDate);
+  const cacheKey = useMemo(
+    () => `${user?.email}:${selectedDateStr}:${PLANNER_DAYS_COUNT}`,
+    [selectedDateStr, user?.email],
+  );
+  const [daysItems, setDaysItems] = useState<PlannerDayItemDTO[]>(
+    () => plannerDaysCache.get(cacheKey) ?? [],
+  );
+  const [isDaysRefreshing, setIsDaysRefreshing] = useState(false);
   const [dragDayItem, setDragDayItem] = useState<PlannerDayItemDTO | null>(null);
+  const daysAbortControllerRef = useRef<AbortController | null>(null);
 
   // Lock to prevent multiple updates for the same item
   const updatingItemsRef = useRef<Set<number>>(new Set());
@@ -29,22 +43,54 @@ export const usePlannerDays = (selectedDate: Date) => {
   const currentItemsOrder = useRef<number[] | null>(null);
   const updatedItemsOrder = useRef<number[] | null>(null);
 
+  const setDaysItemsAndCache = useCallback(
+    (
+      updater: PlannerDayItemDTO[] | ((currentItems: PlannerDayItemDTO[]) => PlannerDayItemDTO[]),
+      invalidateOtherRanges = false,
+    ) => {
+      setDaysItems((currentItems) => {
+        const nextItems = typeof updater === 'function' ? updater(currentItems) : updater;
+        if (invalidateOtherRanges) {
+          plannerDaysCache.deleteAllExcept(cacheKey);
+        }
+        plannerDaysCache.set(cacheKey, nextItems);
+        return nextItems;
+      });
+    },
+    [cacheKey],
+  );
+
   // Fetch items for PLANNER_DAYS_COUNT days starting from selected date
   const fetchDaysItems = useCallback(async () => {
+    daysAbortControllerRef.current?.abort();
+
+    const requestController = new AbortController();
+    daysAbortControllerRef.current = requestController;
+    setIsDaysRefreshing(true);
+
     try {
-      const selectedDateStr = formatDateForAPI(selectedDate);
-      const response = await getItemsByRange(selectedDateStr, PLANNER_DAYS_COUNT);
+      const response = await getItemsByRange(
+        selectedDateStr,
+        PLANNER_DAYS_COUNT,
+        requestController.signal,
+      );
 
       const combinedItems: PlannerDayItemDTO[] = [];
       Object.values(response.data).forEach((items) => {
         combinedItems.push(...items);
       });
 
-      setDaysItems(combinedItems);
+      setDaysItemsAndCache(combinedItems);
     } catch (error) {
-      console.error('Error fetching all days:', error);
+      if (!requestController.signal.aborted) {
+        console.error('Error fetching all days:', error);
+      }
+    } finally {
+      if (daysAbortControllerRef.current === requestController) {
+        setIsDaysRefreshing(false);
+      }
     }
-  }, [selectedDate]);
+  }, [selectedDateStr, setDaysItemsAndCache]);
 
   const handleAddDayItem = async (date: Date, itemText: string) => {
     if (!itemText.trim()) {
@@ -56,7 +102,7 @@ export const usePlannerDays = (selectedDate: Date) => {
         text: itemText,
         day: formatDateForAPI(date),
       });
-      setDaysItems([...daysItems, response.data]);
+      setDaysItemsAndCache((currentItems) => [...currentItems, response.data], true);
     } catch (error) {
       console.error('Error adding day item:', error);
     }
@@ -65,7 +111,7 @@ export const usePlannerDays = (selectedDate: Date) => {
   const handleDeleteDayItem = async (id: number) => {
     try {
       await deletePlannerDayItem(id);
-      setDaysItems(daysItems.filter((item) => item.id !== id));
+      setDaysItemsAndCache((currentItems) => currentItems.filter((item) => item.id !== id), true);
     } catch (error) {
       console.error('Error deleting day item:', error);
     }
@@ -85,14 +131,20 @@ export const usePlannerDays = (selectedDate: Date) => {
     const prev = [...daysItems];
     const prevItem = prev.find((item) => item.id === itemId);
     const optimisticItem = { ...prevItem, ...changes } as PlannerDayItemDTO;
-    setDaysItems(daysItems.map((item) => (item.id === itemId ? optimisticItem : item)));
+    setDaysItemsAndCache(
+      (currentItems) => currentItems.map((item) => (item.id === itemId ? optimisticItem : item)),
+      true,
+    );
 
     try {
       const response = await updatePlannerDayItem(itemId, changes);
-      setDaysItems(daysItems.map((item) => (item.id === itemId ? response.data : item)));
+      setDaysItemsAndCache(
+        (currentItems) => currentItems.map((item) => (item.id === itemId ? response.data : item)),
+        true,
+      );
     } catch (error) {
       console.error('Error updating day item:', error);
-      setDaysItems(prev); // restoring previous state
+      setDaysItemsAndCache(prev, true); // restoring previous state
       showError('Failed to update item, please try again');
     } finally {
       updatingItemsRef.current.delete(itemId);
@@ -111,7 +163,9 @@ export const usePlannerDays = (selectedDate: Date) => {
       });
 
       if (isDateVisible) {
-        setDaysItems([...daysItems, response.data]);
+        setDaysItemsAndCache((currentItems) => [...currentItems, response.data], true);
+      } else {
+        setDaysItemsAndCache((currentItems) => currentItems, true);
       }
     } catch (error) {
       console.error('Error copying day item:', error);
@@ -135,9 +189,9 @@ export const usePlannerDays = (selectedDate: Date) => {
       });
 
       if (isDateVisible) {
-        setDaysItems([...updatedItems, response.data]);
+        setDaysItemsAndCache([...updatedItems, response.data], true);
       } else {
-        setDaysItems(updatedItems);
+        setDaysItemsAndCache(updatedItems, true);
       }
     } catch (error) {
       console.error('Error snoozing day item:', error);
@@ -161,7 +215,7 @@ export const usePlannerDays = (selectedDate: Date) => {
   // Update state without API request and save it to ref
   const handleReorderDayItems = (items: PlannerDayItemDTO[]) => {
     currentItemsOrder.current = daysItems.map((item) => item.id);
-    setDaysItems(items);
+    setDaysItemsAndCache(items, true);
     updatedItemsOrder.current = items.map((item) => item.id);
   };
 
@@ -208,8 +262,17 @@ export const usePlannerDays = (selectedDate: Date) => {
 
   // Fetch items when selected date changes
   useEffect(() => {
+    setDaysItems(plannerDaysCache.get(cacheKey) ?? []);
     void fetchDaysItems();
-  }, [selectedDate, fetchDaysItems]);
+  }, [cacheKey, fetchDaysItems]);
+
+  // Abort pending requests on unmount
+  useEffect(
+    () => () => {
+      daysAbortControllerRef.current?.abort();
+    },
+    [],
+  );
 
   // Refresh listener
   useEffect(() => {
@@ -224,6 +287,7 @@ export const usePlannerDays = (selectedDate: Date) => {
 
   return {
     daysItems,
+    isDaysRefreshing,
     dragDayItem,
     handleDayItemDragStart,
     handleDayItemDragEnd,

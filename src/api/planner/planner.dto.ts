@@ -50,6 +50,11 @@ export interface PlannerAgendaItemDTO extends BasePlannerItemDTO {
   agenda_id: number;
 }
 
+export interface PlannerAgendasWithItemsDTO {
+  agendas: PlannerAgendaDTO[];
+  items: Record<number, PlannerAgendaItemDTO[]>;
+}
+
 export interface PlannerAgendaItemCreateDTO {
   agenda_id: number;
   text: string;

@@ -10,6 +10,7 @@ import type {
   PlannerAgendaUpdateDTO,
   PlannerAgendaActionDTO,
   PlannerAgendaItemDTO,
+  PlannerAgendasWithItemsDTO,
   PlannerAgendaItemCreateDTO,
   PlannerAgendaItemUpdateDTO,
 } from '@api/planner/planner.dto';
@@ -28,12 +29,13 @@ export const getItemsByDays = (days: string[]) =>
       indexes: null, // Prevents using square brackets in array params
     },
   });
-export const getItemsByRange = (startDate: string, daysCount: number) =>
+export const getItemsByRange = (startDate: string, daysCount: number, signal?: AbortSignal) =>
   axios.get<Record<string, PlannerDayItemDTO[]>>(`${DAYS_API_URL}/range/`, {
     params: {
       start_date: startDate,
       days_count: daysCount,
     },
+    signal,
   });
 
 export const createPlannerDayItem = (item: PlannerDayItemCreateDTO) =>
@@ -58,6 +60,7 @@ export const getPlannerAgendas = (
   agendaTypes: string[],
   selectedDay: string | null = null,
   withCounts: boolean = false,
+  signal?: AbortSignal,
 ) =>
   axios.get<PlannerAgendaDTO[]>(AGENDAS_API_URL, {
     params: {
@@ -68,6 +71,24 @@ export const getPlannerAgendas = (
     paramsSerializer: {
       indexes: null, // Prevents using square brackets in array params
     },
+    signal,
+  });
+
+export const getPlannerAgendasWithItems = (
+  agendaTypes: string[],
+  selectedDay: string | null = null,
+  signal?: AbortSignal,
+) =>
+  axios.get<PlannerAgendasWithItemsDTO>(AGENDAS_API_URL, {
+    params: {
+      agenda_types: agendaTypes,
+      selected_day: selectedDay,
+      with_items: true,
+    },
+    paramsSerializer: {
+      indexes: null,
+    },
+    signal,
   });
 
 export const createPlannerAgenda = (agenda: PlannerAgendaCreateDTO) =>
@@ -85,15 +106,6 @@ export const reorderPlannerAgendas = (orderedAgendaIds: number[]) =>
 export const actionPlannerAgenda = (agendaId: number, action: PlannerAgendaActionDTO) =>
   axios.post(`${AGENDAS_API_URL}${agendaId}/action/`, {
     action,
-  });
-
-// Planner Agendas Items API methods
-export const getItemsByAgendas = (agendaIds: number[]) =>
-  axios.get<Record<number, PlannerAgendaItemDTO[]>>(`${AGENDAS_API_URL}items/`, {
-    params: { agenda_ids: agendaIds },
-    paramsSerializer: {
-      indexes: null, // Prevents using square brackets in array params
-    },
   });
 
 export const createPlannerAgendaItem = (item: PlannerAgendaItemCreateDTO) =>

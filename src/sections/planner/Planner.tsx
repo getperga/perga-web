@@ -38,7 +38,7 @@ const Planner = () => {
     handleCopyAgendaItem,
     handleMoveAgendaItem,
     copyAgendasMap,
-    fetchAgendaItems,
+    fetchAgendasBySelectedDate,
   } = usePlannerAgendas(selectedDate);
 
   const startDate = useMemo(
@@ -115,7 +115,7 @@ const Planner = () => {
           onCopyAgendaItemToDay={(date: Date, text: string) => handleAddDayItem(date, text)}
           selectedDate={selectedDate}
           copyAgendasMap={copyAgendasMap}
-          fetchAgendaItems={fetchAgendaItems}
+          fetchAgendasBySelectedDate={fetchAgendasBySelectedDate}
         />
       }
     />

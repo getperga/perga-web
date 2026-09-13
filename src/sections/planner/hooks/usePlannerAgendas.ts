@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import type { PlannerItemStateDTO, PlannerAgendaDTO, PlannerAgendaItemDTO } from '@api/planner';
 import {
-  getPlannerAgendas,
-  getItemsByAgendas,
+  getPlannerAgendasWithItems,
   createPlannerAgendaItem,
   updatePlannerAgendaItem,
   deletePlannerAgendaItem,
@@ -11,17 +10,43 @@ import {
   copyPlannerAgendaItem,
   movePlannerAgendaItem,
 } from '@api/planner';
+import { useAuth } from '@common/contexts/auth/useAuth';
+import { useToast } from '@common/contexts/toast/useToast';
 import { REFRESH_EVENT } from '@common/events';
 import { formatDateForAPI, formatDateMonthName } from '@common/utils/date_utils';
-import { useToast } from '@common/contexts/toast/useToast';
+import { TtlCache } from '@common/utils/ttl_cache';
+
+interface PlannerAgendasCacheValue {
+  agendas: PlannerAgendaDTO[];
+  items: Record<number, PlannerAgendaItemDTO[]>;
+}
+
+const plannerAgendasCache = new TtlCache<PlannerAgendasCacheValue>();
+
+export const invalidatePlannerAgendasCache = () => plannerAgendasCache.clear();
 
 export const usePlannerAgendas = (selectedDate: Date) => {
-  const [plannerAgendas, setPlannerAgendas] = useState<PlannerAgendaDTO[]>([]);
+  const { user } = useAuth();
+  const selectedYear = selectedDate.getFullYear();
+  const selectedMonth = selectedDate.getMonth();
+  const selectedMonthDate = useMemo(
+    () => new Date(selectedYear, selectedMonth, 1),
+    [selectedYear, selectedMonth],
+  );
+  const cacheKey = `${user?.email}:${selectedYear}-${selectedMonth}`;
+  const initialCache = plannerAgendasCache.get(cacheKey);
+  const [plannerAgendas, setPlannerAgendas] = useState<PlannerAgendaDTO[]>(
+    () => initialCache?.agendas ?? [],
+  );
   const [plannerAgendaItems, setPlannerAgendaItems] = useState<
     Record<number, PlannerAgendaItemDTO[]>
-  >({});
+  >(() => initialCache?.items ?? {});
+  const [isAgendasRefreshing, setIsAgendasRefreshing] = useState(false);
+  const plannerAgendasRef = useRef(plannerAgendas);
+  const plannerAgendaItemsRef = useRef(plannerAgendaItems);
 
   const [dragAgendaItem, setDragAgendaItem] = useState<PlannerAgendaItemDTO | null>(null);
+  const agendasAbortControllerRef = useRef<AbortController | null>(null);
 
   // Lock to prevent multiple updates for the same item
   const updatingItemsRef = useRef<Set<number>>(new Set());
@@ -31,41 +56,76 @@ export const usePlannerAgendas = (selectedDate: Date) => {
   const currentItemsOrder = useRef<Map<number, number[]>>(new Map());
   const updatedItemsOrder = useRef<Map<number, number[]>>(new Map());
 
-  // Fetch items only for specific agendas
-  const fetchAgendaItems = useCallback(async (agendaIds: number[]) => {
-    if (!agendaIds?.length) {
-      return;
-    }
+  const updatePlannerAgendasCache = useCallback(
+    (agendas: PlannerAgendaDTO[], items: Record<number, PlannerAgendaItemDTO[]>) => {
+      plannerAgendasCache.set(cacheKey, { agendas, items });
+    },
+    [cacheKey],
+  );
 
-    try {
-      const itemsResponse = await getItemsByAgendas(agendaIds);
-      const itemsByAgenda = itemsResponse.data;
-      setPlannerAgendaItems((prev) => ({
-        ...prev,
-        ...itemsByAgenda,
-      }));
-    } catch (error) {
-      console.error('Error fetching agenda items:', error);
-    }
-  }, []);
+  const setAgendaItemsAndCache = useCallback(
+    (
+      updater:
+        | Record<number, PlannerAgendaItemDTO[]>
+        | ((
+            currentItems: Record<number, PlannerAgendaItemDTO[]>,
+          ) => Record<number, PlannerAgendaItemDTO[]>),
+      invalidateOtherMonths = false,
+    ) => {
+      const nextItems =
+        typeof updater === 'function' ? updater(plannerAgendaItemsRef.current) : updater;
+      if (invalidateOtherMonths) {
+        plannerAgendasCache.deleteAllExcept(cacheKey);
+      }
+      plannerAgendaItemsRef.current = nextItems;
+      setPlannerAgendaItems(nextItems);
+      updatePlannerAgendasCache(plannerAgendasRef.current, nextItems);
+    },
+    [cacheKey, updatePlannerAgendasCache],
+  );
 
   // Fetch planner agendas and their items
   const fetchAgendasWithItems = useCallback(
     async (date: Date) => {
-      try {
-        const response = await getPlannerAgendas(['monthly', 'custom'], formatDateForAPI(date));
-        const agendas = response.data;
-        setPlannerAgendas(agendas);
+      agendasAbortControllerRef.current?.abort();
 
-        if (agendas.length > 0) {
-          const agendaIds = agendas.map((agenda) => agenda.id);
-          await fetchAgendaItems(agendaIds);
+      const requestController = new AbortController();
+      agendasAbortControllerRef.current = requestController;
+      setIsAgendasRefreshing(true);
+
+      try {
+        const response = await getPlannerAgendasWithItems(
+          ['monthly', 'custom'],
+          formatDateForAPI(date),
+          requestController.signal,
+        );
+
+        if (requestController.signal.aborted) {
+          return;
         }
+
+        const { agendas, items } = response.data;
+        plannerAgendasRef.current = agendas;
+        plannerAgendaItemsRef.current = items;
+        setPlannerAgendas(agendas);
+        setPlannerAgendaItems(items);
+        updatePlannerAgendasCache(agendas, items);
       } catch (error) {
-        console.error('Error fetching planner agendas:', error);
+        if (!requestController.signal.aborted) {
+          console.error('Error fetching planner agendas:', error);
+        }
+      } finally {
+        if (agendasAbortControllerRef.current === requestController) {
+          setIsAgendasRefreshing(false);
+        }
       }
     },
-    [fetchAgendaItems],
+    [updatePlannerAgendasCache],
+  );
+
+  const fetchAgendasBySelectedDate = useCallback(
+    () => fetchAgendasWithItems(selectedDate),
+    [fetchAgendasWithItems, selectedDate],
   );
 
   const handleAddAgendaItem = async (agendaId: number, text: string) => {
@@ -78,10 +138,13 @@ export const usePlannerAgendas = (selectedDate: Date) => {
         agenda_id: agendaId,
         text,
       });
-      setPlannerAgendaItems({
-        ...plannerAgendaItems,
-        [agendaId]: [...(plannerAgendaItems[agendaId] || []), response.data],
-      });
+      setAgendaItemsAndCache(
+        (currentItems) => ({
+          ...currentItems,
+          [agendaId]: [...(currentItems[agendaId] || []), response.data],
+        }),
+        true,
+      );
     } catch (error) {
       console.error('Error adding planner agenda item:', error);
     }
@@ -103,22 +166,30 @@ export const usePlannerAgendas = (selectedDate: Date) => {
     const prevItems = plannerAgendaItems[agendaId];
     const prevItem = prevItems.find((item) => item.id === itemId);
     const optimisticItem = { ...prevItem, ...changes } as PlannerAgendaItemDTO;
-    setPlannerAgendaItems({
-      ...plannerAgendaItems,
-      [agendaId]: prevItems.map((item) => (item.id === itemId ? optimisticItem : item)),
-    });
+    setAgendaItemsAndCache(
+      (currentItems) => ({
+        ...currentItems,
+        [agendaId]: (currentItems[agendaId] || []).map((item) =>
+          item.id === itemId ? optimisticItem : item,
+        ),
+      }),
+      true,
+    );
 
     try {
       const response = await updatePlannerAgendaItem(itemId, { agenda_id: agendaId, ...changes });
-      setPlannerAgendaItems({
-        ...plannerAgendaItems,
-        [agendaId]: plannerAgendaItems[agendaId].map((item) =>
-          item.id === itemId ? response.data : item,
-        ),
-      });
+      setAgendaItemsAndCache(
+        (currentItems) => ({
+          ...currentItems,
+          [agendaId]: (currentItems[agendaId] || []).map((item) =>
+            item.id === itemId ? response.data : item,
+          ),
+        }),
+        true,
+      );
     } catch (error) {
       console.error('Error updating planner agenda item:', error);
-      setPlannerAgendaItems(prev); // restoring previous state
+      setAgendaItemsAndCache(prev, true); // restoring previous state
       showError('Failed to update item, please try again');
     } finally {
       updatingItemsRef.current.delete(itemId);
@@ -128,10 +199,13 @@ export const usePlannerAgendas = (selectedDate: Date) => {
   const handleDeleteAgendaItem = async (itemId: number, agendaId: number) => {
     try {
       await deletePlannerAgendaItem(itemId);
-      setPlannerAgendaItems({
-        ...plannerAgendaItems,
-        [agendaId]: plannerAgendaItems[agendaId].filter((item) => item.id !== itemId),
-      });
+      setAgendaItemsAndCache(
+        (currentItems) => ({
+          ...currentItems,
+          [agendaId]: (currentItems[agendaId] || []).filter((item) => item.id !== itemId),
+        }),
+        true,
+      );
     } catch (error) {
       console.error('Error deleting planner agenda item:', error);
     }
@@ -157,10 +231,13 @@ export const usePlannerAgendas = (selectedDate: Date) => {
       agendaId,
       (plannerAgendaItems[agendaId] || []).map((item) => item.id),
     );
-    setPlannerAgendaItems({
-      ...plannerAgendaItems,
-      [agendaId]: items,
-    });
+    setAgendaItemsAndCache(
+      {
+        ...plannerAgendaItems,
+        [agendaId]: items,
+      },
+      true,
+    );
     updatedItemsOrder.current.set(
       agendaId,
       items.map((item) => item.id),
@@ -193,21 +270,18 @@ export const usePlannerAgendas = (selectedDate: Date) => {
     }
   };
 
-  const previousMonthRef = useRef(-1);
   useEffect(() => {
-    const currentMonth = selectedDate.getMonth();
-    const previousMonth = previousMonthRef.current;
+    const cached = plannerAgendasCache.get(cacheKey);
+    plannerAgendasRef.current = cached?.agendas ?? [];
+    plannerAgendaItemsRef.current = cached?.items ?? {};
+    setPlannerAgendas(cached?.agendas ?? []);
+    setPlannerAgendaItems(cached?.items ?? {});
+    void fetchAgendasWithItems(selectedMonthDate);
 
-    // Do not refetch agendas, if month hasn't changed
-    if (currentMonth === previousMonth) {
-      return;
-    }
-
-    fetchAgendasWithItems(selectedDate);
-
-    // Update the previous month ref
-    previousMonthRef.current = currentMonth;
-  }, [selectedDate, fetchAgendasWithItems]);
+    return () => {
+      agendasAbortControllerRef.current?.abort();
+    };
+  }, [cacheKey, selectedMonthDate, fetchAgendasWithItems]);
 
   // Refresh listener
   useEffect(() => {
@@ -225,10 +299,13 @@ export const usePlannerAgendas = (selectedDate: Date) => {
       const response = await copyPlannerAgendaItem(itemId, toAgendaId);
       const newItem = response.data;
 
-      setPlannerAgendaItems((prev) => ({
-        ...prev,
-        [newItem.agenda_id]: [...(prev[newItem.agenda_id] || []), newItem],
-      }));
+      setAgendaItemsAndCache(
+        (prev) => ({
+          ...prev,
+          [newItem.agenda_id]: [...(prev[newItem.agenda_id] || []), newItem],
+        }),
+        true,
+      );
     } catch (error) {
       console.error('Error copying agenda item:', error);
     }
@@ -239,14 +316,17 @@ export const usePlannerAgendas = (selectedDate: Date) => {
       const response = await movePlannerAgendaItem(itemId, toAgendaId);
       const newItem = response.data;
 
-      setPlannerAgendaItems((prev) => ({
-        ...prev,
+      setAgendaItemsAndCache(
+        (prev) => ({
+          ...prev,
 
-        // remove original agenda item
-        [fromAgendaId]: (prev[fromAgendaId] || []).filter((item) => item.id !== itemId),
+          // remove original agenda item
+          [fromAgendaId]: (prev[fromAgendaId] || []).filter((item) => item.id !== itemId),
 
-        [newItem.agenda_id]: [...(prev[newItem.agenda_id] || []), newItem],
-      }));
+          [newItem.agenda_id]: [...(prev[newItem.agenda_id] || []), newItem],
+        }),
+        true,
+      );
     } catch (error) {
       console.error('Error moving agenda item:', error);
     }
@@ -280,6 +360,7 @@ export const usePlannerAgendas = (selectedDate: Date) => {
   return {
     plannerAgendas,
     plannerAgendaItems,
+    isAgendasRefreshing,
     dragAgendaItem,
     handleDragStartAgendaItem,
     handleDragEndAgendaItem,
@@ -290,6 +371,6 @@ export const usePlannerAgendas = (selectedDate: Date) => {
     handleCopyAgendaItem,
     handleMoveAgendaItem,
     copyAgendasMap,
-    fetchAgendaItems,
+    fetchAgendasBySelectedDate,
   };
 };

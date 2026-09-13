@@ -10,6 +10,7 @@ import {
 } from '@api/planner';
 import { REFRESH_EVENT } from '@common/events';
 import { useToast } from '@common/contexts/toast/useToast';
+import { invalidatePlannerAgendasCache } from '@planner/hooks/usePlannerAgendas';
 
 export const useSettingsAgendas = () => {
   const [settingsAgendas, setSettingsAgendas] = useState<PlannerAgendaDTO[]>([]);
@@ -39,6 +40,7 @@ export const useSettingsAgendas = () => {
       });
       const newAgenda = response.data;
       setSettingsAgendas((prev) => [...prev, newAgenda]);
+      invalidatePlannerAgendasCache();
     } catch (error) {
       console.error('Error creating planner agenda:', error);
       showError('Failed to create agenda');
@@ -73,6 +75,7 @@ export const useSettingsAgendas = () => {
       setSettingsAgendas((prev) =>
         prev.map((agenda) => (agenda.id === agendaId ? updated : agenda)),
       );
+      invalidatePlannerAgendasCache();
       return updated;
     } catch (error) {
       console.error('Error updating planner agenda:', error);
@@ -88,6 +91,7 @@ export const useSettingsAgendas = () => {
     setSettingsAgendas((prev) => prev.filter((agenda) => agenda.id !== agendaId));
     try {
       await deletePlannerAgenda(agendaId);
+      invalidatePlannerAgendasCache();
     } catch (error) {
       console.error('Error deleting planner agenda:', error);
       showError('Failed to delete agenda');
@@ -116,6 +120,7 @@ export const useSettingsAgendas = () => {
     setSettingsAgendas(agendas);
     try {
       await reorderPlannerAgendas(agendas.map((agenda) => agenda.id));
+      invalidatePlannerAgendasCache();
     } catch (error) {
       console.error('Error reordering agendas:', error);
       showError('Failed to save new order, restoring…');

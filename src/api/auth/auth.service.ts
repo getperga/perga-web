@@ -28,7 +28,7 @@ export const signin = (userData: UserSigninDTO) =>
 export const googleSignin = (data: GoogleSigninDTO) =>
   axios.post<TokenDTO>(`${AUTH_API_URL}/google/`, data);
 
-export const refreshToken = (refreshTokenData: RefreshTokenDTO) =>
+const refreshToken = (refreshTokenData: RefreshTokenDTO) =>
   axios.post<TokenDTO>(`${AUTH_API_URL}/refresh_token/`, refreshTokenData);
 
 export const getUser = () => axios.get<UserDTO>(`${AUTH_API_URL}/user/`);
@@ -48,7 +48,7 @@ export const storeToken = (token: TokenDTO) => {
   }
 };
 
-export const getToken = (): TokenDTO | null => {
+const getToken = (): TokenDTO | null => {
   const access_token = Storage.get(StorageKeys.AuthToken, null);
   const token_type = Storage.get(StorageKeys.TokenType, null);
   const refresh_token = Storage.get(StorageKeys.RefreshToken, null);
