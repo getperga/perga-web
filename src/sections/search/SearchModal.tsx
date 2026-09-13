@@ -163,7 +163,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
           />
         </div>
 
-        <div className="mt-2 min-h-40 max-h-[60vh] sm:max-h-72 overflow-y-auto">
+        <div className="mt-2 min-h-40 max-h-[60vh] sm:max-h-[36rem] overflow-y-auto">
           {isTyping ? (
             searchStatus === 'error' ? (
               <div className="p-2 text-sm text-text-main/60">Search failed. Please try again.</div>

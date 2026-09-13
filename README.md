@@ -1,77 +1,42 @@
 # Perga Web
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Build](https://github.com/getperga/perga-web/actions/workflows/ci.yml/badge.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Node.js](https://img.shields.io/badge/Node.js-20-green.svg)
+[![CI](https://github.com/getperga/perga-web/actions/workflows/ci.yml/badge.svg)](https://github.com/getperga/perga-web/actions/workflows/ci.yml)
 
-A personal workspace for your notes, plans, and ideas.
+The browser client for [Perga](https://getperga.me/) — a personal workspace for notes, plans, and ideas. The backend lives in the [perga-api](https://github.com/getperga/perga-api) repository.
 
-## Overview
+## Features
 
-**[Perga API](https://github.com/getperga/perga-api)** is the core of the product.  
-**Perga Web** is a standalone **browser client** that connects to the backend to provide a user-friendly web interface.
+- Daily planning
+- Monthly and custom agendas
+- Notes management with folders, import, export, and full-text search
+- User authentication and settings, including Google sign-in
+- Responsive interface, dark theme, and PWA support
 
 ## Screenshots
 
- <p>
-  <img src="docs/assets/planner_screenshot.png" alt="Planner" width="300" />
+<p>
+  <img src="docs/assets/planner_screenshot.png" alt="Daily planner" width="300" />
   <span>&nbsp;&nbsp;&nbsp;</span>
-  <img src="docs/assets/planner_weekly_screenshot.png" alt="Planner Weekly" width="300" />
+  <img src="docs/assets/planner_weekly_screenshot.png" alt="Weekly planner" width="300" />
   <span>&nbsp;&nbsp;&nbsp;</span>
   <img src="docs/assets/notes_screenshot.png" alt="Notes" width="300" />
 </p>
 
-## Features
+Try the hosted demo at [demo.getperga.me](https://demo.getperga.me/).
 
-- Daily planner + weekly view
-- Monthly and custom agendas
-- Notes
-- User authentication and settings
-- Responsive design with mobile support
-- PWA support
-- Dark theme
+## Tech stack
 
-## Demo
-
-You can try out Perga without installation by visiting demo version at [https://demo.getperga.me/](https://demo.getperga.me/).
-
-## Getting Started
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (v18 or higher)
-- [npm](https://www.npmjs.com/) (v8 or higher)
-
-### Installation
-
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Setup environment:
-   ```bash
-   cp .env.example .env
-   ```
-
-### Development
-
-Start the development server:
-
-```bash
-npm run dev
-```
-
-Build for production:
-
-```bash
-npm run build
-```
+- Node.js 20, React 19, and TypeScript
+- [Vite](https://vite.dev/) and [Tailwind CSS](https://tailwindcss.com/)
+- [Tiptap](https://tiptap.dev/) rich-text editor
+- Docker and nginx
 
 ## Documentation
 
-For detailed documentation, please visit:
-[https://docs.getperga.me/docs/perga-web](https://docs.getperga.me/docs/perga-web)
+Installation, configuration, and development instructions are available in the [Perga documentation](https://docs.getperga.me/docs/perga-web).
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Perga Web is licensed under the [MIT License](LICENSE).
