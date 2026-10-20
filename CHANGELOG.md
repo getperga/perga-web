@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.3] - 2026-10-20
+
+### Changed
+
+- updated dependencies
+- updated README
+
 ## [1.2.2] - 2026-09-12
 
 ### Added
