@@ -500,11 +500,9 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
     };
 
     collectPinnedNotes(rootFolder, []);
-    return result.sort(
-      (first, second) => {
-        return Date.parse(second.updated_dt) - Date.parse(first.updated_dt);
-      },
-    );
+    return result.sort((first, second) => {
+      return Date.parse(second.updated_dt) - Date.parse(first.updated_dt);
+    });
   }, [rootFolder]);
 
   return {
