@@ -176,6 +176,20 @@ describe('NotesEditorMenuBar', () => {
     expect(editor.chain().focus().redo().run).toHaveBeenCalled();
   });
 
+  it('renders the pin action immediately after Redo and exposes its active state', () => {
+    const editor = createMockEditor();
+    const onPinClick = vi.fn();
+    render(<NotesEditorMenuBar editor={editor} isPinned={true} onPinClick={onPinClick} />);
+
+    const redoButton = screen.getByTitle('Redo');
+    const pinButton = screen.getByRole('button', { name: 'Unpin note' });
+    expect(redoButton.nextElementSibling).toBe(pinButton);
+    expect(pinButton.getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(pinButton);
+    expect(onPinClick).toHaveBeenCalledOnce();
+  });
+
   describe('setLink', () => {
     it('sets link when URL is provided', () => {
       const editor = createMockEditor();

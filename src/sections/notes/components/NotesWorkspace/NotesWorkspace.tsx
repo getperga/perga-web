@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Pin } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface NotesWorkspaceProps {
   editor: ReactNode;
@@ -23,7 +23,7 @@ export const NotesWorkspace = ({ editor, pinnedPanel }: NotesWorkspaceProps) => 
           className="absolute -right-px top-6 z-10 hidden cursor-pointer rounded-l border border-gray-600 bg-bg-main p-2 text-text-muted transition-colors hover:text-text-main md:block"
           style={{ borderRightColor: 'var(--bg-main)' }}
         >
-          <Pin size={18} />
+          {isPinnedPanelOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
       </div>
 

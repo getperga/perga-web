@@ -32,7 +32,7 @@ describe('NotesWorkspace', () => {
     expect(hideButton.className).toContain('z-10');
     expect(hideButton.className).toContain('border-gray-600');
     expect(hideButton.style.borderRightColor).toBe('var(--bg-main)');
-    expect(hideButton.querySelector('.lucide-pin')).not.toBeNull();
+    expect(hideButton.querySelector('.lucide-chevron-right')).not.toBeNull();
 
     fireEvent.click(hideButton);
 
@@ -42,7 +42,7 @@ describe('NotesWorkspace', () => {
     const showButton = screen.getByRole('button', { name: 'Show pinned notes' });
     expect(showButton.className).toContain('top-6');
     expect(showButton.className).toContain('-right-px');
-    expect(showButton.querySelector('.lucide-pin')).not.toBeNull();
+    expect(showButton.querySelector('.lucide-chevron-left')).not.toBeNull();
 
     fireEvent.click(showButton);
 

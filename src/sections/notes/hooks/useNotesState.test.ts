@@ -9,6 +9,11 @@ const apiMocks = vi.hoisted(() => ({
   getNote: vi.fn(),
   updateNote: vi.fn(),
 }));
+const toastMocks = vi.hoisted(() => ({ showError: vi.fn() }));
+
+vi.mock('@common/contexts/toast/useToast', () => ({
+  useToast: () => toastMocks,
+}));
 
 vi.mock('@api/notes', () => ({
   getFolders: apiMocks.getFolders,
@@ -51,10 +56,12 @@ const foldersResponse = {
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 };
 
 describe('useNotesState note history', () => {
@@ -247,6 +254,34 @@ describe('useNotesState note history', () => {
     expect(result.current.pinnedNotes).toEqual([
       expect.objectContaining({ id: 1, is_pinned: true, folderPath: [] }),
     ]);
+  });
+
+  it('updates pinned state optimistically and rolls it back with a toast on failure', async () => {
+    const updateRequest = deferred<{ data: (typeof notes)[number] & { body: string } }>();
+    apiMocks.updateNote.mockReturnValueOnce(updateRequest.promise);
+
+    const { result } = renderHook(() => useNotesState());
+    await waitFor(() => expect(result.current.rootFolder).not.toBeNull());
+
+    let updatePromise!: Promise<void>;
+    act(() => {
+      updatePromise = result.current.handleSetNotePinned(1, true);
+    });
+
+    expect(result.current.pinnedNotes).toEqual([
+      expect.objectContaining({ id: 1, is_pinned: true }),
+    ]);
+
+    await act(async () => {
+      updateRequest.reject(new Error('Network error'));
+      await updatePromise;
+    });
+
+    expect(result.current.pinnedNotes).toEqual([]);
+    expect(toastMocks.showError).toHaveBeenCalledWith(
+      'Failed to update pinned note, please try again',
+    );
+    expect(apiMocks.getFolders).toHaveBeenCalledTimes(1);
   });
 
   it('does not load selected note content while the editor route is inactive', async () => {

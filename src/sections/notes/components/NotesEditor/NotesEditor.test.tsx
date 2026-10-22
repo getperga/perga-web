@@ -17,6 +17,7 @@ const notesContext = vi.hoisted(() => ({
   canOpenNextNote: false,
   openPreviousNote: vi.fn(),
   openNextNote: vi.fn(),
+  handleSetNotePinned: vi.fn(),
 }));
 
 vi.mock('@notes/context', () => ({
@@ -31,9 +32,28 @@ const note: NoteDTO = {
   title: 'Test note',
   body: '<p>the quick fox jumps over the lazy fox and then the fox runs</p>',
   folder_id: 1,
-} as NoteDTO;
+  updated_dt: '2026-01-01T00:00:00Z',
+  is_pinned: false,
+};
 
-describe('NotesEditor find in note', () => {
+describe('NotesEditor', () => {
+  it('pins the current note from the editor toolbar', () => {
+    render(<NotesEditor note={note} onUpdate={async () => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pin note' }));
+
+    expect(notesContext.handleSetNotePinned).toHaveBeenCalledWith(note.id, true);
+  });
+
+  it('does not show the toolbar pin action for a note in Trash', () => {
+    notesContext.trashItemIds.noteIds = [note.id];
+
+    render(<NotesEditor note={note} onUpdate={async () => {}} />);
+
+    expect(screen.queryByRole('button', { name: 'Pin note' })).toBeNull();
+    notesContext.trashItemIds.noteIds = [];
+  });
+
   it('renders note history navigation and handles enabled buttons', () => {
     notesContext.canOpenPreviousNote = true;
     notesContext.canOpenNextNote = true;

@@ -37,6 +37,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
     canOpenNextNote,
     openPreviousNote,
     openNextNote,
+    handleSetNotePinned,
   } = useNotes();
   const isInTrash = note?.id ? trashItemIds.noteIds.includes(note.id) : false;
 
@@ -213,7 +214,14 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
           }`}
         />
       </div>
-      <NotesEditorMenuBar editor={editor} onFindClick={toggleFindBar} />
+      <NotesEditorMenuBar
+        editor={editor}
+        onFindClick={toggleFindBar}
+        isPinned={note.is_pinned}
+        onPinClick={
+          isInTrash ? undefined : () => void handleSetNotePinned(note.id, !note.is_pinned)
+        }
+      />
       {isFindBarOpen && (
         <NotesEditorFindBar
           query={findQuery}
