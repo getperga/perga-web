@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.4] - 2026-10-23
+
+### Added
+
+- pinned notes panel
+- pin / unpin actions
+- restore action
+
 ## [1.2.3] - 2026-10-20
 
 ### Changed
