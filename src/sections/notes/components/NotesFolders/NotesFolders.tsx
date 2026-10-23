@@ -162,9 +162,10 @@ export const NotesFolders: React.FC = () => {
         ))}
       </div>
 
-      {trashFolder && (
+      {trashFolder && rootFolder && (
         <NotesFoldersTrash
           folder={trashFolder}
+          rootFolderId={rootFolder.id}
           onEmptyTrash={handleEmptyTrash}
           onMoveFolderToTrash={handleMoveFolderToTrash}
           onMoveNoteToTrash={handleMoveNoteToTrash}
