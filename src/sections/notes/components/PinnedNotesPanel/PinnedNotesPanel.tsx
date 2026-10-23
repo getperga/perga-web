@@ -4,7 +4,11 @@ import { Dropdown, DropdownItem } from '@common/components/Dropdown';
 import { Icon } from '@common/components/Icon';
 import { useNotes } from '@notes/context';
 
-export const PinnedNotesPanel = () => {
+interface PinnedNotesPanelProps {
+  onNoteOpen?: () => void;
+}
+
+export const PinnedNotesPanel = ({ onNoteOpen }: PinnedNotesPanelProps) => {
   const {
     rootFolder,
     pinnedNotes,
@@ -25,6 +29,7 @@ export const PinnedNotesPanel = () => {
   const handleOpenNote = (noteId: number) => {
     setSelectedNoteId(noteId);
     focusEditor();
+    onNoteOpen?.();
   };
 
   return (
@@ -46,7 +51,7 @@ export const PinnedNotesPanel = () => {
               onClick={() => handleOpenNote(note.id)}
               aria-label={`Open ${title}`}
               aria-current={isSelected ? 'page' : undefined}
-              className="min-w-0 flex-1 px-2 py-2 text-left"
+              className="min-h-11 min-w-0 flex-1 px-2 py-2 text-left"
             >
               <span className="block truncate text-sm" title={title}>
                 {title}
@@ -59,7 +64,7 @@ export const PinnedNotesPanel = () => {
             <Dropdown
               buttonIcon={<Icon name="dots" size={18} className="h-5 w-5" />}
               buttonTitle={`Actions for ${title}`}
-              buttonClassName="p-2 text-text-muted opacity-0 transition-opacity hover:text-text-main group-hover:opacity-100 focus:opacity-100"
+              buttonClassName="flex min-h-11 min-w-11 items-center justify-center p-2 text-text-muted opacity-100 transition-opacity hover:text-text-main md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100"
               dropdownClassName="w-36"
             >
               <DropdownItem onClick={() => void handleSetNotePinned(note.id, false)}>

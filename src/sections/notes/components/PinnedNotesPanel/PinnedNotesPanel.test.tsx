@@ -54,15 +54,21 @@ describe('PinnedNotesPanel', () => {
     expect(screen.getByText('Projects / Perga').getAttribute('title')).toBe('Projects / Perga');
     expect(screen.getByText('Untitled Note')).toBeDefined();
     expect(screen.getByText('Notes')).toBeDefined();
+    expect(selectedNote.className).toContain('min-h-11');
+    expect(
+      screen.getByRole('button', { name: 'Actions for Project decisions' }).className,
+    ).toContain('opacity-100');
   });
 
   it('selects a note through history and requests editor focus', () => {
-    render(<PinnedNotesPanel />);
+    const onNoteOpen = vi.fn();
+    render(<PinnedNotesPanel onNoteOpen={onNoteOpen} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Open Untitled Note' }));
 
     expect(setSelectedNoteId).toHaveBeenCalledWith(1);
     expect(focusEditor).toHaveBeenCalledTimes(1);
+    expect(onNoteOpen).toHaveBeenCalledTimes(1);
   });
 
   it('unpins a note from its actions menu without selecting it', () => {

@@ -100,7 +100,7 @@ export const NotesFoldersNote = ({
       <Dropdown
         buttonIcon={<Icon name="dots" size={20} className="h-6 w-6" />}
         buttonTitle="Note actions"
-        buttonClassName="p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+        buttonClassName="flex min-h-11 min-w-11 items-center justify-center p-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100"
         dropdownClassName="w-40"
       >
         {!isInTrash && (

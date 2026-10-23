@@ -60,6 +60,16 @@ describe('NotesFoldersNote pin action', () => {
     expect(notesContext.handleSetNotePinned).toHaveBeenCalledWith(note.id, false);
   });
 
+  it('keeps the actions button visible and touch-friendly on mobile', () => {
+    renderNote();
+
+    const actionsButton = screen.getByRole('button', { name: 'Note actions' });
+    expect(actionsButton.className).toContain('opacity-100');
+    expect(actionsButton.className).toContain('md:opacity-0');
+    expect(actionsButton.className).toContain('min-h-11');
+    expect(actionsButton.className).toContain('min-w-11');
+  });
+
   it('hides the pin action in Trash', () => {
     notesContext.trashItemIds.noteIds = [note.id];
     renderNote();
