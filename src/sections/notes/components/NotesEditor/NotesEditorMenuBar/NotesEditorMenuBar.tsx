@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Editor } from '@tiptap/react';
+import { Pin } from 'lucide-react';
 
 import { Icon } from '@common/components';
 import { editorIcons } from '../notes_editor_icons';
@@ -8,9 +9,16 @@ import { normalizeLinkHref } from '../extensions/noteLink';
 interface MenuBarProps {
   editor: Editor | null;
   onFindClick?: () => void;
+  isPinned?: boolean;
+  onPinClick?: () => void;
 }
 
-export const NotesEditorMenuBar: React.FC<MenuBarProps> = ({ editor, onFindClick }) => {
+export const NotesEditorMenuBar: React.FC<MenuBarProps> = ({
+  editor,
+  onFindClick,
+  isPinned = false,
+  onPinClick,
+}) => {
   if (!editor) {
     return null;
   }
@@ -158,6 +166,22 @@ export const NotesEditorMenuBar: React.FC<MenuBarProps> = ({ editor, onFindClick
           })}
         </button>
       ))}
+
+      {onPinClick && (
+        <button
+          type="button"
+          onClick={onPinClick}
+          title={isPinned ? 'Unpin note' : 'Pin note'}
+          aria-label={isPinned ? 'Unpin note' : 'Pin note'}
+          aria-pressed={isPinned}
+          className={`rounded p-1.5 transition-colors hover:bg-bg-hover ${
+            isPinned ? 'text-link' : 'text-text-muted'
+          }`}
+          tabIndex={-1}
+        >
+          <Pin size={18} fill={isPinned ? 'currentColor' : 'none'} />
+        </button>
+      )}
 
       {onFindClick && (
         <button

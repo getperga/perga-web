@@ -9,6 +9,11 @@ const apiMocks = vi.hoisted(() => ({
   getNote: vi.fn(),
   updateNote: vi.fn(),
 }));
+const toastMocks = vi.hoisted(() => ({ showError: vi.fn() }));
+
+vi.mock('@common/contexts/toast/useToast', () => ({
+  useToast: () => toastMocks,
+}));
 
 vi.mock('@api/notes', () => ({
   getFolders: apiMocks.getFolders,
@@ -27,6 +32,7 @@ const notes = Array.from({ length: 100 }, (_, index) => ({
   folder_id: 1,
   title: `Note ${index + 1}`,
   updated_dt: '2026-01-01T00:00:00Z',
+  is_pinned: false,
 }));
 
 const foldersResponse = {
@@ -50,10 +56,12 @@ const foldersResponse = {
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 };
 
 describe('useNotesState note history', () => {
@@ -65,12 +73,13 @@ describe('useNotesState note history', () => {
       Promise.resolve({ data: { ...notes[id - 1], body: '' } }),
     );
     apiMocks.updateNote.mockImplementation(
-      (id: number, changes: { title?: string; body?: string }) =>
+      (id: number, changes: { title?: string; body?: string; is_pinned?: boolean }) =>
         Promise.resolve({
           data: {
             ...notes[id - 1],
             title: changes.title ?? notes[id - 1]?.title ?? '',
             body: changes.body ?? '',
+            is_pinned: changes.is_pinned ?? notes[id - 1]?.is_pinned ?? false,
             updated_dt: '2026-02-01T00:00:00Z',
           },
         }),
@@ -154,6 +163,125 @@ describe('useNotesState note history', () => {
 
     await act(async () => result.current.handleRenameNote(2, 'Updated title'));
     expect(apiMocks.getFolders).toHaveBeenCalledTimes(3);
+  });
+
+  it('collects pinned notes recursively with folder paths and sorts them by update time', async () => {
+    apiMocks.getFolders.mockResolvedValue({
+      data: {
+        root_folder: {
+          ...foldersResponse.root_folder,
+          notes: [
+            {
+              ...notes[0],
+              is_pinned: true,
+              updated_dt: '2026-02-01T00:00:00Z',
+            },
+          ],
+          subfolders: [
+            {
+              id: 3,
+              parent_id: 1,
+              folder_type: 'regular',
+              name: 'Projects',
+              notes: [],
+              subfolders: [
+                {
+                  id: 4,
+                  parent_id: 3,
+                  folder_type: 'regular',
+                  name: 'Perga',
+                  notes: [
+                    {
+                      ...notes[1],
+                      folder_id: 4,
+                      is_pinned: true,
+                      updated_dt: '2026-03-01T00:00:00Z',
+                    },
+                    {
+                      ...notes[2],
+                      folder_id: 4,
+                      updated_dt: '2026-04-01T00:00:00Z',
+                    },
+                  ],
+                  subfolders: [],
+                },
+              ],
+            },
+          ],
+        },
+        trash_folder: {
+          ...foldersResponse.trash_folder,
+          notes: [
+            {
+              ...notes[3],
+              folder_id: 2,
+              is_pinned: true,
+              updated_dt: '2026-05-01T00:00:00Z',
+            },
+          ],
+        },
+      },
+    });
+
+    const { result } = renderHook(() => useNotesState());
+
+    await waitFor(() => expect(result.current.pinnedNotes).toHaveLength(2));
+    expect(result.current.pinnedNotes).toEqual([
+      expect.objectContaining({ id: 2, folderPath: ['Projects', 'Perga'] }),
+      expect.objectContaining({ id: 1, folderPath: [] }),
+    ]);
+  });
+
+  it('patches pinned state and refreshes the folders tree', async () => {
+    const pinnedFoldersResponse = {
+      ...foldersResponse,
+      root_folder: {
+        ...foldersResponse.root_folder,
+        notes: [{ ...notes[0], is_pinned: true }],
+      },
+    };
+    apiMocks.getFolders
+      .mockResolvedValueOnce({ data: foldersResponse })
+      .mockResolvedValueOnce({ data: pinnedFoldersResponse });
+
+    const { result } = renderHook(() => useNotesState());
+    await waitFor(() => expect(result.current.rootFolder).not.toBeNull());
+
+    await act(async () => result.current.handleSetNotePinned(1, true));
+
+    expect(apiMocks.updateNote).toHaveBeenCalledWith(1, { is_pinned: true });
+    expect(apiMocks.getFolders).toHaveBeenCalledTimes(2);
+    expect(result.current.pinnedNotes).toEqual([
+      expect.objectContaining({ id: 1, is_pinned: true, folderPath: [] }),
+    ]);
+  });
+
+  it('updates pinned state optimistically and rolls it back with a toast on failure', async () => {
+    const updateRequest = deferred<{ data: (typeof notes)[number] & { body: string } }>();
+    apiMocks.updateNote.mockReturnValueOnce(updateRequest.promise);
+
+    const { result } = renderHook(() => useNotesState());
+    await waitFor(() => expect(result.current.rootFolder).not.toBeNull());
+
+    let updatePromise!: Promise<void>;
+    act(() => {
+      updatePromise = result.current.handleSetNotePinned(1, true);
+    });
+
+    expect(result.current.pinnedNotes).toEqual([
+      expect.objectContaining({ id: 1, is_pinned: true }),
+    ]);
+
+    await act(async () => {
+      updateRequest.reject(new Error('Network error'));
+      await updatePromise;
+    });
+
+    expect(result.current.pinnedNotes).toEqual([]);
+    expect(toastMocks.showError).toHaveBeenCalledWith(
+      'Failed to update pinned note, please try again',
+    );
+    expect(apiMocks.getFolders).toHaveBeenCalledTimes(1);
   });
 
   it('does not load selected note content while the editor route is inactive', async () => {

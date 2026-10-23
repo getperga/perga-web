@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Pin, PinOff } from 'lucide-react';
 
 import type { NoteMetaDTO, NotesExportTypeDTO, NotesExportTargetDTO } from '@api/notes';
 import { Dropdown, DropdownItem, DropdownSubmenu } from '@common/components/Dropdown';
@@ -24,7 +25,7 @@ export const NotesFoldersNote = ({
   isSelected = false,
   className = '',
 }: FoldersNoteProps) => {
-  const { trashItemIds, focusEditor } = useNotes();
+  const { trashItemIds, focusEditor, handleSetNotePinned } = useNotes();
   const isInTrash = trashItemIds.noteIds.includes(note.id);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -99,9 +100,19 @@ export const NotesFoldersNote = ({
       <Dropdown
         buttonIcon={<Icon name="dots" size={20} className="h-6 w-6" />}
         buttonTitle="Note actions"
-        buttonClassName="p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+        buttonClassName="flex min-h-11 min-w-11 items-center justify-center p-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100"
         dropdownClassName="w-40"
       >
+        {!isInTrash && (
+          <DropdownItem onClick={() => void handleSetNotePinned(note.id, !note.is_pinned)}>
+            {note.is_pinned ? (
+              <PinOff size={14} className="mr-2 h-4 w-4" />
+            ) : (
+              <Pin size={14} className="mr-2 h-4 w-4" />
+            )}
+            {note.is_pinned ? 'Unpin' : 'Pin'}
+          </DropdownItem>
+        )}
         <DropdownItem onClick={handleRenameClick}>
           <Icon name="edit" size={14} className="h-4 w-4 mr-2" /> Rename
         </DropdownItem>

@@ -19,11 +19,12 @@ import {
   importNotes,
 } from '@api/notes';
 import { REFRESH_EVENT } from '@common/events';
+import { useToast } from '@common/contexts/toast/useToast';
 import { downloadFile } from '@common/utils/download_utils';
 import Storage from '@common/utils/storage';
 import { StorageKeys } from '@common/utils/storage_keys';
 import { NOTES_DEFAULT_EXTENSION, NOTES_EXTENSION_MAP } from '@notes/const';
-import { NotesTrashItemIds } from '@notes/types.ts';
+import { NotesTrashItemIds, PinnedNote } from '@notes/types.ts';
 import { saveNoteFindQueryToStorage } from '@notes/utils';
 
 const NOTES_HISTORY_LIMIT = 50;
@@ -60,6 +61,7 @@ const getNotesHistoryFromStorage = (): number[] => {
 };
 
 export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions = {}) => {
+  const { showError } = useToast();
   const [rootFolder, setRootFolder] = useState<NotesFolderResponseDTO | null>(null);
   const [trashFolder, setTrashFolder] = useState<NotesFolderResponseDTO | null>(null);
   const [trashItemIds, setTrashItemIds] = useState<NotesTrashItemIds>({
@@ -274,6 +276,70 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
     [fetchFolders],
   );
 
+  const handleSetNotePinned = useCallback(
+    async (noteId: number, isPinned: boolean) => {
+      const updatePinnedState = (
+        folder: NotesFolderResponseDTO,
+        pinned: boolean,
+      ): NotesFolderResponseDTO => ({
+        ...folder,
+        notes: folder.notes.map((note) =>
+          note.id === noteId ? { ...note, is_pinned: pinned } : note,
+        ),
+        subfolders: folder.subfolders.map((subfolder) => updatePinnedState(subfolder, pinned)),
+      });
+      const findPinnedState = (folder: NotesFolderResponseDTO | null): boolean | undefined => {
+        if (!folder) {
+          return undefined;
+        }
+        const note = folder.notes.find((candidate) => candidate.id === noteId);
+        if (note) {
+          return note.is_pinned;
+        }
+        for (const subfolder of folder.subfolders) {
+          const pinned = findPinnedState(subfolder);
+          if (pinned !== undefined) {
+            return pinned;
+          }
+        }
+        return undefined;
+      };
+
+      const previousPinnedState =
+        findPinnedState(rootFolder) ??
+        (selectedNoteIdRef.current === noteId ? selectedNote?.is_pinned : undefined) ??
+        !isPinned;
+
+      setRootFolder((currentFolder) =>
+        currentFolder ? updatePinnedState(currentFolder, isPinned) : currentFolder,
+      );
+      setSelectedNote((currentNote) =>
+        currentNote?.id === noteId ? { ...currentNote, is_pinned: isPinned } : currentNote,
+      );
+
+      try {
+        const response = await updateNote(noteId, { is_pinned: isPinned });
+        if (selectedNoteIdRef.current === noteId) {
+          setSelectedNote(response.data);
+        }
+
+        await fetchFolders();
+      } catch (error) {
+        console.error('Error updating pinned note state:', error);
+        setRootFolder((currentFolder) =>
+          currentFolder ? updatePinnedState(currentFolder, previousPinnedState) : currentFolder,
+        );
+        setSelectedNote((currentNote) =>
+          currentNote?.id === noteId
+            ? { ...currentNote, is_pinned: previousPinnedState }
+            : currentNote,
+        );
+        showError('Failed to update pinned note, please try again');
+      }
+    },
+    [fetchFolders, rootFolder, selectedNote, showError],
+  );
+
   const handleUpdateNote = useCallback(
     async (noteId: number, title: string | undefined, body: string | undefined) => {
       try {
@@ -466,6 +532,29 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
       .slice(0, RECENT_NOTES_LIMIT);
   }, [notesHistoryState.ids, rootFolder, trashFolder]);
 
+  const pinnedNotes = useMemo(() => {
+    if (!rootFolder) {
+      return [];
+    }
+
+    const result: PinnedNote[] = [];
+    const collectPinnedNotes = (folder: NotesFolderResponseDTO, folderPath: string[]) => {
+      folder.notes.forEach((note) => {
+        if (note.is_pinned) {
+          result.push({ ...note, folderPath });
+        }
+      });
+      folder.subfolders.forEach((subfolder) => {
+        collectPinnedNotes(subfolder, [...folderPath, subfolder.name]);
+      });
+    };
+
+    collectPinnedNotes(rootFolder, []);
+    return result.sort((first, second) => {
+      return Date.parse(second.updated_dt) - Date.parse(first.updated_dt);
+    });
+  }, [rootFolder]);
+
   return {
     rootFolder,
     trashFolder,
@@ -475,6 +564,7 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
     handleMoveFolderToTrash,
     handleCreateNote,
     handleRenameNote,
+    handleSetNotePinned,
     handleUpdateNote,
     handleMoveNote,
     handleMoveNoteToTrash,
@@ -483,6 +573,7 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
     handleImportNotes,
     setSelectedNoteId: selectNote,
     recentNotes,
+    pinnedNotes,
     canOpenPreviousNote: notesHistoryState.index > 0,
     canOpenNextNote: notesHistoryState.index < notesHistoryState.ids.length - 1,
     openPreviousNote,

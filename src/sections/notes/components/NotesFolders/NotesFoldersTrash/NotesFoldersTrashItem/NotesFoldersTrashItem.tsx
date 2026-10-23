@@ -3,12 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { StorageKeys } from '@common/utils/storage_keys';
 import type { NotesFolderResponseDTO } from '@api/notes';
 import { Icon } from '@common/components/Icon';
-import { useNotes } from '@notes/context';
+import { NotesFoldersTrashNote } from '@notes/components/NotesFolders/NotesFoldersTrash/NotesFoldersTrashNote';
 
 interface TrashItemProps {
   folder: NotesFolderResponseDTO;
   onMoveFolder: (folderId: number, parentId: number) => Promise<void>;
   onMoveNote: (noteId: number, folderId: number) => Promise<void>;
+  rootFolderId: number;
   onSelectNote: (id: number) => void;
   selectedNoteId: number | null;
 }
@@ -17,10 +18,10 @@ export const NotesFoldersTrashItem: React.FC<TrashItemProps> = ({
   folder,
   onMoveFolder,
   onMoveNote,
+  rootFolderId,
   onSelectNote,
   selectedNoteId,
 }) => {
-  const { trashItemIds } = useNotes();
   const [isExpanded, setIsExpanded] = useState(() => {
     const saved = localStorage.getItem(StorageKeys.NotesExpandedFolders);
     if (saved) {
@@ -78,34 +79,22 @@ export const NotesFoldersTrashItem: React.FC<TrashItemProps> = ({
                 folder={subfolder}
                 onMoveFolder={onMoveFolder}
                 onMoveNote={onMoveNote}
+                rootFolderId={rootFolderId}
                 onSelectNote={onSelectNote}
                 selectedNoteId={selectedNoteId}
               />
             ))}
           {folder.notes &&
             folder.notes.map((note) => (
-              <div
+              <NotesFoldersTrashNote
                 key={note.id}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('dragType', 'note');
-                  e.dataTransfer.setData('dragId', note.id.toString());
-                }}
-                onClick={() => onSelectNote(note.id)}
-                className={`ml-8 mb-3 flex items-center p-2 hover:bg-bg-hover rounded text-text-main cursor-pointer ${note.id === selectedNoteId ? 'bg-bg-hover' : ''}`}
-              >
-                <div
-                  className={`flex items-center flex-1 truncate ${trashItemIds.noteIds.includes(note.id) ? 'opacity-50' : ''}`}
-                >
-                  <Icon
-                    name="note"
-                    size="16"
-                    fill="currentColor"
-                    className="mr-2 opacity-70 shrink-0"
-                  />
-                  <span className="truncate">{note.title || 'Untitled Note'}</span>
-                </div>
-              </div>
+                note={note}
+                rootFolderId={rootFolderId}
+                onMoveNote={onMoveNote}
+                onSelectNote={onSelectNote}
+                isSelected={note.id === selectedNoteId}
+                className="mb-3 ml-8"
+              />
             ))}
         </>
       )}

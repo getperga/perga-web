@@ -1,12 +1,14 @@
-export interface NoteDTO {
+export interface NoteMetaDTO {
   id: number;
   folder_id: number;
   title: string;
-  body: string;
   updated_dt: string;
+  is_pinned: boolean;
 }
 
-export type NoteMetaDTO = Omit<NoteDTO, 'body'>;
+export interface NoteDTO extends NoteMetaDTO {
+  body: string;
+}
 
 export interface NoteCreateDTO {
   folder_id: number;
@@ -18,6 +20,7 @@ export interface NoteUpdateDTO {
   folder_id?: number;
   title?: string;
   body?: string;
+  is_pinned?: boolean;
 }
 
 export interface NotesFolderDTO {

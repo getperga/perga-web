@@ -17,6 +17,7 @@ const notesContext = vi.hoisted(() => ({
       folder_id: 1,
       title: 'Recent note',
       updated_dt: '2026-01-01T00:00:00Z',
+      is_pinned: false,
     },
   ],
 }));

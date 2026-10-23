@@ -15,6 +15,7 @@ describe('useNotesDebounceUpdate', () => {
     title: 'Initial Title',
     body: 'Initial Body',
     updated_dt: '2021-01-01',
+    is_pinned: false,
   };
 
   beforeEach(() => {
@@ -94,6 +95,7 @@ describe('useNotesDebounceUpdate', () => {
       title: 'Second Title',
       body: 'Second Body',
       updated_dt: '2021-01-01',
+      is_pinned: false,
     };
     act(() => {
       rerender({ selectedNote: secondNote });

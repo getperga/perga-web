@@ -5,8 +5,7 @@ import { Dropdown, DropdownItem } from '@common/components/Dropdown';
 import { Icon } from '@common/components/Icon';
 import { StorageKeys } from '@common/utils/storage_keys';
 import { NotesFoldersTrashItem } from '@notes/components/NotesFolders/NotesFoldersTrash/NotesFoldersTrashItem/NotesFoldersTrashItem';
-
-import { useNotes } from '@notes/context';
+import { NotesFoldersTrashNote } from '@notes/components/NotesFolders/NotesFoldersTrash/NotesFoldersTrashNote';
 
 interface TrashProps {
   folder: NotesFolderResponseDTO;
@@ -15,6 +14,7 @@ interface TrashProps {
   onMoveNoteToTrash: (id: number) => Promise<void>;
   onMoveFolder: (folderId: number, parentId: number) => Promise<void>;
   onMoveNote: (noteId: number, folderId: number) => Promise<void>;
+  rootFolderId: number;
   onSelectNote: (id: number) => void;
   selectedNoteId: number | null;
 }
@@ -26,11 +26,10 @@ export const NotesFoldersTrash: React.FC<TrashProps> = ({
   onMoveNoteToTrash,
   onMoveFolder,
   onMoveNote,
+  rootFolderId,
   onSelectNote,
   selectedNoteId,
 }) => {
-  const { trashItemIds } = useNotes();
-
   const [isExpanded, setIsExpanded] = useState(() => {
     const saved = localStorage.getItem(StorageKeys.NotesExpandedFolders);
     if (saved) {
@@ -102,7 +101,7 @@ export const NotesFoldersTrash: React.FC<TrashProps> = ({
         <Dropdown
           buttonIcon={<Icon name="dots" size={20} className="h-6 w-6" />}
           buttonTitle="Folder actions"
-          buttonClassName="p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+          buttonClassName="flex min-h-11 min-w-11 items-center justify-center p-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100"
           dropdownClassName="w-40"
         >
           <DropdownItem onClick={() => onEmptyTrash()}>
@@ -122,34 +121,22 @@ export const NotesFoldersTrash: React.FC<TrashProps> = ({
                   folder={subfolder}
                   onMoveFolder={onMoveFolder}
                   onMoveNote={onMoveNote}
+                  rootFolderId={rootFolderId}
                   onSelectNote={onSelectNote}
                   selectedNoteId={selectedNoteId}
                 />
               ))}
             {folder.notes &&
               folder.notes.map((note) => (
-                <div
+                <NotesFoldersTrashNote
                   key={note.id}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('dragType', 'note');
-                    e.dataTransfer.setData('dragId', note.id.toString());
-                  }}
-                  onClick={() => onSelectNote(note.id)}
-                  className={`ml-4 mb-3 flex items-center p-2 hover:bg-bg-hover rounded text-text-main cursor-pointer ${note.id === selectedNoteId ? 'bg-bg-hover' : ''}`}
-                >
-                  <div
-                    className={`flex items-center flex-1 truncate ${trashItemIds.noteIds.includes(note.id) ? 'opacity-50' : ''}`}
-                  >
-                    <Icon
-                      name="note"
-                      size="16"
-                      fill="currentColor"
-                      className="mr-2 opacity-70 shrink-0"
-                    />
-                    <span className="truncate">{note.title || 'Untitled Note'}</span>
-                  </div>
-                </div>
+                  note={note}
+                  rootFolderId={rootFolderId}
+                  onMoveNote={onMoveNote}
+                  onSelectNote={onSelectNote}
+                  isSelected={note.id === selectedNoteId}
+                  className="mb-3 ml-4"
+                />
               ))}
           </>
         )}
