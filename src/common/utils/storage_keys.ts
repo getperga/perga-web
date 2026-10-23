@@ -20,4 +20,5 @@ export enum StorageKeys {
   NotesSelectedNoteId = 'notes:selectedNoteId',
   NotesHistory = 'notes:history',
   NotesFindQuery = 'notes:findQuery',
+  NotesPinnedPanelOpen = 'notes:pinnedPanelOpen',
 }

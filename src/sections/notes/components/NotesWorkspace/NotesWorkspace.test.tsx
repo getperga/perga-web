@@ -1,9 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { StorageKeys } from '@common/utils/storage_keys';
 
 import { NotesWorkspace } from './NotesWorkspace';
 
 describe('NotesWorkspace', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   it('renders the editor and the fixed pinned notes panel', () => {
     render(
       <NotesWorkspace
@@ -38,6 +43,7 @@ describe('NotesWorkspace', () => {
 
     expect(screen.queryByText('Pinned notes content')).toBeNull();
     expect(screen.queryByLabelText('Pinned notes')).toBeNull();
+    expect(localStorage.getItem(StorageKeys.NotesPinnedPanelOpen)).toBe('false');
 
     const showButton = screen.getByRole('button', { name: 'Show pinned notes' });
     expect(showButton.className).toContain('top-6');
@@ -48,5 +54,20 @@ describe('NotesWorkspace', () => {
 
     expect(screen.getByText('Pinned notes content')).toBeDefined();
     expect(screen.getByLabelText('Pinned notes').className).toContain('w-60');
+    expect(localStorage.getItem(StorageKeys.NotesPinnedPanelOpen)).toBe('true');
+  });
+
+  it('restores a closed pinned notes panel from storage', () => {
+    localStorage.setItem(StorageKeys.NotesPinnedPanelOpen, 'false');
+
+    render(
+      <NotesWorkspace
+        editor={<div>Note editor</div>}
+        pinnedPanel={<div>Pinned notes content</div>}
+      />,
+    );
+
+    expect(screen.queryByLabelText('Pinned notes')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show pinned notes' })).toBeDefined();
   });
 });

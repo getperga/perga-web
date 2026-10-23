@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import Storage from '@common/utils/storage';
+import { StorageKeys } from '@common/utils/storage_keys';
 
 interface NotesWorkspaceProps {
   editor: ReactNode;
@@ -7,7 +9,15 @@ interface NotesWorkspaceProps {
 }
 
 export const NotesWorkspace = ({ editor, pinnedPanel }: NotesWorkspaceProps) => {
-  const [isPinnedPanelOpen, setIsPinnedPanelOpen] = useState(true);
+  const [isPinnedPanelOpen, setIsPinnedPanelOpen] = useState(() =>
+    Storage.getBoolean(StorageKeys.NotesPinnedPanelOpen, true),
+  );
+
+  const togglePinnedPanel = () => {
+    const newPanelState = !isPinnedPanelOpen;
+    setIsPinnedPanelOpen(newPanelState);
+    Storage.setBoolean(StorageKeys.NotesPinnedPanelOpen, newPanelState);
+  };
 
   return (
     <div className="flex h-full min-h-0 w-full overflow-hidden">
@@ -16,7 +26,7 @@ export const NotesWorkspace = ({ editor, pinnedPanel }: NotesWorkspaceProps) => 
 
         <button
           type="button"
-          onClick={() => setIsPinnedPanelOpen((isOpen) => !isOpen)}
+          onClick={togglePinnedPanel}
           aria-label={isPinnedPanelOpen ? 'Hide pinned notes' : 'Show pinned notes'}
           aria-pressed={isPinnedPanelOpen}
           title={isPinnedPanelOpen ? 'Hide pinned notes' : 'Show pinned notes'}
