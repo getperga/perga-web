@@ -34,7 +34,7 @@ export const useNotesFind = ({
 
   // load the saved find query once the matching note is loaded, or reset the find bar
   useEffect(() => {
-    if (!editor || lastSyncedNoteIdRef.current !== noteId) {
+    if (!editor || editor.isDestroyed || lastSyncedNoteIdRef.current !== noteId) {
       return;
     }
     if (

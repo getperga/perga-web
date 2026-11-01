@@ -10,7 +10,7 @@ interface NotesWorkspaceProps {
 
 export const NotesWorkspace = ({ editor, pinnedPanel }: NotesWorkspaceProps) => {
   const [isPinnedPanelOpen, setIsPinnedPanelOpen] = useState(() =>
-    Storage.getBoolean(StorageKeys.NotesPinnedPanelOpen, true),
+    Storage.getBoolean(StorageKeys.NotesPinnedPanelOpen, false),
   );
 
   const togglePinnedPanel = () => {
