@@ -51,6 +51,7 @@ describe('NotesEditor', () => {
     render(<NotesEditor note={note} onUpdate={async () => {}} />);
 
     expect(screen.queryByRole('button', { name: 'Pin note' })).toBeNull();
+    expect(screen.getByRole('img', { name: 'Note is in Trash' })).toBeDefined();
     notesContext.trashItemIds.noteIds = [];
   });
 

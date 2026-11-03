@@ -10,6 +10,7 @@ interface MenuBarProps {
   editor: Editor | null;
   onFindClick?: () => void;
   isPinned?: boolean;
+  isInTrash?: boolean;
   onPinClick?: () => void;
 }
 
@@ -17,6 +18,7 @@ export const NotesEditorMenuBar: React.FC<MenuBarProps> = ({
   editor,
   onFindClick,
   isPinned = false,
+  isInTrash = false,
   onPinClick,
 }) => {
   if (!editor) {
@@ -181,6 +183,17 @@ export const NotesEditorMenuBar: React.FC<MenuBarProps> = ({
         >
           <Pin size={18} fill={isPinned ? 'currentColor' : 'none'} />
         </button>
+      )}
+
+      {isInTrash && (
+        <span
+          role="img"
+          aria-label="Note is in Trash"
+          title="Note is in Trash"
+          className="rounded p-1.5 text-text-muted"
+        >
+          <Icon name="trash" size={18} />
+        </span>
       )}
 
       {onFindClick && (

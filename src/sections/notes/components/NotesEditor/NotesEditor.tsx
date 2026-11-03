@@ -218,6 +218,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
         editor={editor}
         onFindClick={toggleFindBar}
         isPinned={note.is_pinned}
+        isInTrash={isInTrash}
         onPinClick={
           isInTrash ? undefined : () => void handleSetNotePinned(note.id, !note.is_pinned)
         }
