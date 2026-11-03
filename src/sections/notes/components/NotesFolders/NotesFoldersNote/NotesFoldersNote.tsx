@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Copy, Pin, PinOff } from 'lucide-react';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
+import { Copy, FolderInput, Pin, PinOff } from 'lucide-react';
 
 import type { NoteMetaDTO, NotesExportTypeDTO, NotesExportTargetDTO } from '@api/notes';
 import { Dropdown, DropdownItem, DropdownSubmenu } from '@common/components/Dropdown';
 import { Icon } from '@common/components/Icon';
 import { useNotes } from '@notes/context';
+import { useMoveToFolderItems } from '@notes/hooks/useMoveToFolderItems';
 
 interface FoldersNoteProps {
   note: NoteMetaDTO;
@@ -25,8 +26,24 @@ export const NotesFoldersNote = ({
   isSelected = false,
   className = '',
 }: FoldersNoteProps) => {
-  const { trashItemIds, focusEditor, handleSetNotePinned, handleDuplicateNote } = useNotes();
+  const {
+    rootFolder,
+    trashItemIds,
+    focusEditor,
+    handleSetNotePinned,
+    handleDuplicateNote,
+    handleMoveNote,
+  } = useNotes();
   const isInTrash = trashItemIds.noteIds.includes(note.id);
+  const moveNote = useCallback(
+    (folderId: number) => void handleMoveNote(note.id, folderId),
+    [handleMoveNote, note.id],
+  );
+  const moveToFolderItems = useMoveToFolderItems({
+    rootFolder,
+    currentFolderId: note.folder_id,
+    onMove: moveNote,
+  });
 
   const [isEditing, setIsEditing] = useState(false);
   const [renameValue, setRenameValue] = useState(note.title || '');
@@ -121,41 +138,29 @@ export const NotesFoldersNote = ({
             <Copy size={14} className="mr-2 h-4 w-4" /> Duplicate
           </DropdownItem>
         )}
+        {!isInTrash && rootFolder && (
+          <DropdownSubmenu
+            label={
+              <>
+                <FolderInput size={14} className="mr-2 h-4 w-4" /> Move to…
+              </>
+            }
+            items={moveToFolderItems}
+          />
+        )}
         <DropdownSubmenu
           label={
             <>
               <Icon name="download" size={14} className="h-4 w-4 mr-2" /> Export
             </>
           }
-        >
-          <DropdownItem
-            onClick={(e) => {
-              e.stopPropagation();
-              void onExport('markdown', 'single_note', note.id);
-            }}
-            className="pl-10"
-          >
-            Markdown
-          </DropdownItem>
-          <DropdownItem
-            onClick={(e) => {
-              e.stopPropagation();
-              void onExport('html', 'single_note', note.id);
-            }}
-            className="pl-10"
-          >
-            HTML
-          </DropdownItem>
-          <DropdownItem
-            onClick={(e) => {
-              e.stopPropagation();
-              void onExport('pdf', 'single_note', note.id);
-            }}
-            className="pl-10"
-          >
-            PDF
-          </DropdownItem>
-        </DropdownSubmenu>
+          items={(['markdown', 'html', 'pdf'] as const).map((type) => ({
+            key: type,
+            label: type === 'html' ? 'HTML' : `${type[0].toUpperCase()}${type.slice(1)}`,
+            className: 'pl-10',
+            onClick: () => void onExport(type, 'single_note', note.id),
+          }))}
+        />
         <DropdownItem
           onClick={(e) => {
             e.stopPropagation();

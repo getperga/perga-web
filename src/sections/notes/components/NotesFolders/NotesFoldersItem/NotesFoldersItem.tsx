@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
+import { FolderInput } from 'lucide-react';
 
 import type {
   NotesFolderResponseDTO,
@@ -13,6 +14,7 @@ import { StorageKeys } from '@common/utils/storage_keys';
 import { pluralize } from '@common/utils/string_utils';
 import { NotesFoldersNote } from '@notes/components/NotesFolders/NotesFoldersNote/NotesFoldersNote';
 import { useNotes } from '@notes/context';
+import { useMoveToFolderItems } from '@notes/hooks/useMoveToFolderItems';
 
 interface FoldersItemProps {
   folder: NotesFolderResponseDTO;
@@ -87,7 +89,17 @@ export const NotesFoldersItem = ({
   wrapperClass = '',
 }: FoldersItemProps) => {
   const { showToast, showError } = useToast();
-  const { trashItemIds } = useNotes();
+  const { rootFolder, trashItemIds } = useNotes();
+  const moveFolder = useCallback(
+    (parentId: number) => void onMoveFolder(folder.id, parentId),
+    [folder.id, onMoveFolder],
+  );
+  const moveToFolderItems = useMoveToFolderItems({
+    rootFolder,
+    currentFolderId: folder.parent_id,
+    movingFolder: folder,
+    onMove: moveFolder,
+  });
   const [isEditing, setIsEditing] = useState(false);
   const [isExpanded, setIsExpanded] = useState(() => {
     const saved = localStorage.getItem(StorageKeys.NotesExpandedFolders);
@@ -361,38 +373,28 @@ export const NotesFoldersItem = ({
             isImporting={isImporting}
             onImport={onImport}
           />
+          {rootFolder && (
+            <DropdownSubmenu
+              label={
+                <>
+                  <FolderInput size={14} className="mr-2 h-4 w-4" /> Move to…
+                </>
+              }
+              items={moveToFolderItems}
+            />
+          )}
           <DropdownSubmenu
             label={
               <>
                 <Icon name="download" size={14} className="h-4 w-4 mr-2" /> Export
               </>
             }
-          >
-            <DropdownItem
-              onClick={(e) => {
-                e.stopPropagation();
-                void onNotesExport('markdown', 'folder_notes', folder.id);
-              }}
-            >
-              Markdown
-            </DropdownItem>
-            <DropdownItem
-              onClick={(e) => {
-                e.stopPropagation();
-                void onNotesExport('html', 'folder_notes', folder.id);
-              }}
-            >
-              HTML
-            </DropdownItem>
-            <DropdownItem
-              onClick={(e) => {
-                e.stopPropagation();
-                void onNotesExport('pdf', 'folder_notes', folder.id);
-              }}
-            >
-              PDF
-            </DropdownItem>
-          </DropdownSubmenu>
+            items={(['markdown', 'html', 'pdf'] as const).map((type) => ({
+              key: type,
+              label: type === 'html' ? 'HTML' : `${type[0].toUpperCase()}${type.slice(1)}`,
+              onClick: () => void onNotesExport(type, 'folder_notes', folder.id),
+            }))}
+          />
           <DropdownItem onClick={handleTrash}>
             <Icon name="trash" size={14} className="h-4 w-4 mr-2" /> Move to Trash
           </DropdownItem>

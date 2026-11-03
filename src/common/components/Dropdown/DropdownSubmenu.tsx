@@ -1,16 +1,28 @@
 import React, { useState } from 'react';
 
 import { Icon } from '@common/components/Icon';
+import { DropdownItem } from './DropdownItem';
+
+export interface DropdownSubmenuItem {
+  key: React.Key;
+  label: React.ReactNode;
+  onClick?: (event: React.MouseEvent) => void;
+  disabled?: boolean;
+  className?: string;
+  title?: string;
+}
 
 interface DropdownSubmenuProps {
   label: React.ReactNode;
-  children: React.ReactNode;
+  children?: React.ReactNode;
+  items?: DropdownSubmenuItem[];
   className?: string;
 }
 
 export const DropdownSubmenu: React.FC<DropdownSubmenuProps> = ({
   label,
   children,
+  items,
   className = '',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,7 +44,22 @@ export const DropdownSubmenu: React.FC<DropdownSubmenuProps> = ({
         />
       </div>
 
-      {isOpen && <div className="bg-bg-main/50">{children}</div>}
+      {isOpen && (
+        <div className="bg-bg-main/50">
+          {items?.map((item) => (
+            <DropdownItem
+              key={item.key}
+              onClick={item.onClick}
+              disabled={item.disabled}
+              className={item.className}
+              title={item.title}
+            >
+              {item.label}
+            </DropdownItem>
+          ))}
+          {children}
+        </div>
+      )}
     </div>
   );
 };

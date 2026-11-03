@@ -5,10 +5,28 @@ import type { NoteMetaDTO } from '@api/notes';
 import { NotesFoldersNote } from './NotesFoldersNote';
 
 const notesContext = vi.hoisted(() => ({
+  rootFolder: {
+    id: 1,
+    parent_id: null,
+    folder_type: 'root',
+    name: 'Notes',
+    notes: [],
+    subfolders: [
+      {
+        id: 2,
+        parent_id: 1,
+        folder_type: 'regular',
+        name: 'Projects',
+        notes: [],
+        subfolders: [],
+      },
+    ],
+  },
   trashItemIds: { folderIds: [] as number[], noteIds: [] as number[] },
   focusEditor: vi.fn(),
   handleSetNotePinned: vi.fn(),
   handleDuplicateNote: vi.fn(),
+  handleMoveNote: vi.fn(),
 }));
 
 vi.mock('@notes/context', () => ({
@@ -89,5 +107,18 @@ describe('NotesFoldersNote pin action', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Duplicate' }));
 
     expect(notesContext.handleDuplicateNote).toHaveBeenCalledWith(note.id);
+  });
+
+  it('moves a note from the actions submenu', () => {
+    renderNote();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Note actions' }));
+    fireEvent.click(screen.getByText('Move to…'));
+    expect((screen.getByRole('button', { name: 'Move to Notes' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Projects' }));
+
+    expect(notesContext.handleMoveNote).toHaveBeenCalledWith(note.id, 2);
   });
 });
