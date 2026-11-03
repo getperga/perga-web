@@ -100,7 +100,12 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
   }, [query, results]);
 
   const handleSelectResult = (note: NoteSearchResultDTO) => {
-    openNoteFromSearch(note.id, query.trim());
+    if (note.find_query) {
+      openNoteFromSearch(note.id, note.find_query);
+    } else {
+      setSelectedNoteId(note.id);
+    }
+
     navigate('/notes/');
     onClose();
   };

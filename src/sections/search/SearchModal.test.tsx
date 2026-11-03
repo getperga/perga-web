@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { NoteSearchResultDTO } from '@api/notes';
 
 import { SearchModal } from './SearchModal';
 
@@ -38,9 +40,27 @@ const deferred = <T,>() => {
   return { promise, resolve };
 };
 
+const searchResult = (overrides: Partial<NoteSearchResultDTO> = {}): NoteSearchResultDTO => ({
+  id: 7,
+  folder_id: 1,
+  title: 'Project roadmap',
+  updated_dt: '2026-01-01T00:00:00Z',
+  is_pinned: false,
+  folders_path: [],
+  matched_in_title: true,
+  matched_in_body: false,
+  match_kind: 'exact',
+  find_query: null,
+  ...overrides,
+});
+
 describe('SearchModal keyboard navigation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('follows the visible section-first order', () => {
@@ -90,6 +110,53 @@ describe('SearchModal keyboard navigation', () => {
     expect(screen.getByText('No notes found')).toBeTruthy();
 
     expect(screen.getByText('No notes found')).toBeTruthy();
-    vi.useRealTimers();
+  });
+
+  it('opens a title-only result without opening find in note', async () => {
+    vi.useFakeTimers();
+    apiMocks.searchNotes.mockResolvedValue({ data: [searchResult()] });
+
+    render(
+      <MemoryRouter>
+        <SearchModal isOpen onClose={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Search notes or jump to a section...'), {
+      target: { value: 'roadmap' },
+    });
+    await act(async () => vi.advanceTimersByTime(300));
+    fireEvent.click(screen.getByText('Project roadmap'));
+
+    expect(notesContext.setSelectedNoteId).toHaveBeenCalledWith(7);
+    expect(notesContext.openNoteFromSearch).not.toHaveBeenCalled();
+  });
+
+  it('opens find in note when the API returns a literal body query', async () => {
+    vi.useFakeTimers();
+    apiMocks.searchNotes.mockResolvedValue({
+      data: [
+        searchResult({
+          matched_in_title: false,
+          matched_in_body: true,
+          find_query: 'roadmap',
+        }),
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <SearchModal isOpen onClose={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Search notes or jump to a section...'), {
+      target: { value: 'roadmap' },
+    });
+    await act(async () => vi.advanceTimersByTime(300));
+    fireEvent.click(screen.getByText('Project roadmap'));
+
+    expect(notesContext.openNoteFromSearch).toHaveBeenCalledWith(7, 'roadmap');
+    expect(notesContext.setSelectedNoteId).not.toHaveBeenCalled();
   });
 });

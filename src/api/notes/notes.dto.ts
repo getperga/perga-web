@@ -69,4 +69,8 @@ export interface NotesImportResponseDTO {
 
 export interface NoteSearchResultDTO extends NoteMetaDTO {
   folders_path: string[];
+  matched_in_title: boolean;
+  matched_in_body: boolean;
+  match_kind: 'exact' | 'prefix' | 'fuzzy';
+  find_query: string | null;
 }
