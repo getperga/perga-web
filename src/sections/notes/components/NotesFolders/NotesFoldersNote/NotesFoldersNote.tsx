@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Pin, PinOff } from 'lucide-react';
+import { Copy, Pin, PinOff } from 'lucide-react';
 
 import type { NoteMetaDTO, NotesExportTypeDTO, NotesExportTargetDTO } from '@api/notes';
 import { Dropdown, DropdownItem, DropdownSubmenu } from '@common/components/Dropdown';
@@ -25,7 +25,7 @@ export const NotesFoldersNote = ({
   isSelected = false,
   className = '',
 }: FoldersNoteProps) => {
-  const { trashItemIds, focusEditor, handleSetNotePinned } = useNotes();
+  const { trashItemIds, focusEditor, handleSetNotePinned, handleDuplicateNote } = useNotes();
   const isInTrash = trashItemIds.noteIds.includes(note.id);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -116,6 +116,11 @@ export const NotesFoldersNote = ({
         <DropdownItem onClick={handleRenameClick}>
           <Icon name="edit" size={14} className="h-4 w-4 mr-2" /> Rename
         </DropdownItem>
+        {!isInTrash && (
+          <DropdownItem onClick={() => void handleDuplicateNote(note.id)}>
+            <Copy size={14} className="mr-2 h-4 w-4" /> Duplicate
+          </DropdownItem>
+        )}
         <DropdownSubmenu
           label={
             <>

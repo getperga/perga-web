@@ -210,6 +210,27 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
     [fetchFolders, selectNote],
   );
 
+  const handleDuplicateNote = useCallback(
+    async (noteId: number) => {
+      try {
+        const sourceNoteResponse = await getNote(noteId);
+        const sourceNote = sourceNoteResponse.data;
+        const response = await createNote({
+          folder_id: sourceNote.folder_id,
+          title: `${sourceNote.title} (copy)`,
+          body: sourceNote.body,
+        });
+
+        selectNote(response.data.id);
+        await fetchFolders();
+      } catch (error) {
+        console.error('Error duplicating note:', error);
+        showError('Failed to duplicate note, please try again');
+      }
+    },
+    [fetchFolders, selectNote, showError],
+  );
+
   const handleMoveNoteToTrash = useCallback(
     async (noteId: number) => {
       if (!trashFolder) {
@@ -563,6 +584,7 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
     handleMoveFolder,
     handleMoveFolderToTrash,
     handleCreateNote,
+    handleDuplicateNote,
     handleRenameNote,
     handleSetNotePinned,
     handleUpdateNote,

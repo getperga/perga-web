@@ -8,6 +8,7 @@ const notesContext = vi.hoisted(() => ({
   trashItemIds: { folderIds: [] as number[], noteIds: [] as number[] },
   focusEditor: vi.fn(),
   handleSetNotePinned: vi.fn(),
+  handleDuplicateNote: vi.fn(),
 }));
 
 vi.mock('@notes/context', () => ({
@@ -78,5 +79,15 @@ describe('NotesFoldersNote pin action', () => {
 
     expect(screen.queryByRole('button', { name: 'Pin' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Unpin' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Duplicate' })).toBeNull();
+  });
+
+  it('duplicates a note from the actions menu', () => {
+    renderNote();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Note actions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate' }));
+
+    expect(notesContext.handleDuplicateNote).toHaveBeenCalledWith(note.id);
   });
 });
