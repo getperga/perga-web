@@ -4,6 +4,7 @@ export interface NoteMetaDTO {
   title: string;
   updated_dt: string;
   is_pinned: boolean;
+  pin_index?: number | null;
 }
 
 export interface NoteDTO extends NoteMetaDTO {
@@ -21,6 +22,10 @@ export interface NoteUpdateDTO {
   title?: string;
   body?: string;
   is_pinned?: boolean;
+}
+
+export interface PinnedNotesReorderDTO {
+  note_ids: number[];
 }
 
 export interface NotesFolderDTO {

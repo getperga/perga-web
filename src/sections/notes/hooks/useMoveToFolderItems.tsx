@@ -11,10 +11,7 @@ interface UseMoveToFolderItemsOptions {
   onMove: (folderId: number) => void;
 }
 
-const collectFolderAndDescendantIds = (
-  folder: NotesFolderResponseDTO,
-  ids: Set<number>,
-) => {
+const collectFolderAndDescendantIds = (folder: NotesFolderResponseDTO, ids: Set<number>) => {
   ids.add(folder.id);
   folder.subfolders.forEach((subfolder) => collectFolderAndDescendantIds(subfolder, ids));
 };
@@ -48,12 +45,7 @@ export const useMoveToFolderItems = ({
         label: (
           <>
             <span style={{ width: `${depth * 16}px` }} className="shrink-0" />
-            <Icon
-              name="folder"
-              size={14}
-              className="mr-2 h-4 w-4 shrink-0"
-              fill="currentColor"
-            />
+            <Icon name="folder" size={14} className="mr-2 h-4 w-4 shrink-0" fill="currentColor" />
             <span className="truncate">{folder.name}</span>
           </>
         ),

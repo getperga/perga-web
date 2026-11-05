@@ -9,6 +9,7 @@ const apiMocks = vi.hoisted(() => ({
   getNote: vi.fn(),
   createNote: vi.fn(),
   updateNote: vi.fn(),
+  reorderPinnedNotes: vi.fn(),
 }));
 const toastMocks = vi.hoisted(() => ({ showError: vi.fn() }));
 
@@ -23,6 +24,7 @@ vi.mock('@api/notes', () => ({
   updateFolder: vi.fn(),
   createNote: apiMocks.createNote,
   updateNote: apiMocks.updateNote,
+  reorderPinnedNotes: apiMocks.reorderPinnedNotes,
   emptyTrash: vi.fn(),
   exportNotes: vi.fn(),
   importNotes: vi.fn(),
@@ -76,6 +78,7 @@ describe('useNotesState note history', () => {
     apiMocks.createNote.mockResolvedValue({
       data: { ...notes[99], id: 101, body: '' },
     });
+    apiMocks.reorderPinnedNotes.mockResolvedValue({ data: [] });
     apiMocks.updateNote.mockImplementation(
       (id: number, changes: { title?: string; body?: string; is_pinned?: boolean }) =>
         Promise.resolve({
@@ -327,5 +330,28 @@ describe('useNotesState note history', () => {
 
     rerender({ loadSelectedNote: true });
     await waitFor(() => expect(apiMocks.getNote).toHaveBeenCalledWith(1, expect.any(AbortSignal)));
+  });
+
+  it('sorts pinned notes by their manual indexes and saves a reordered list optimistically', async () => {
+    apiMocks.getFolders.mockResolvedValue({
+      data: {
+        ...foldersResponse,
+        root_folder: {
+          ...foldersResponse.root_folder,
+          notes: [
+            { ...notes[0], is_pinned: true, pin_index: 1 },
+            { ...notes[1], is_pinned: true, pin_index: 0 },
+          ],
+        },
+      },
+    });
+
+    const { result } = renderHook(() => useNotesState());
+    await waitFor(() => expect(result.current.pinnedNotes.map((note) => note.id)).toEqual([2, 1]));
+
+    await act(async () => result.current.handleReorderPinnedNotes([1, 2]));
+
+    expect(result.current.pinnedNotes.map((note) => note.id)).toEqual([1, 2]);
+    expect(apiMocks.reorderPinnedNotes).toHaveBeenCalledWith({ note_ids: [1, 2] });
   });
 });

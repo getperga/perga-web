@@ -12,6 +12,7 @@ import type {
   NotesFoldersResponseSchemaDTO,
   NotesExportRequestSchema,
   NotesImportResponseDTO,
+  PinnedNotesReorderDTO,
 } from './notes.dto';
 
 // API URLs
@@ -56,3 +57,6 @@ export const importNotes = (files: File[], folderId?: number) => {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
+
+export const reorderPinnedNotes = (data: PinnedNotesReorderDTO) =>
+  axios.post<NoteDTO[]>(`${NOTES_API_URL}/pinned/reorder/`, data);

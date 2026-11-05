@@ -12,6 +12,7 @@ const useNotesMock = vi.mocked(useNotes);
 const setSelectedNoteId = vi.fn();
 const focusEditor = vi.fn();
 const handleSetNotePinned = vi.fn();
+const handleReorderPinnedNotes = vi.fn();
 
 const notesState = {
   rootFolder: { name: 'Notes' },
@@ -37,6 +38,7 @@ const notesState = {
   setSelectedNoteId,
   focusEditor,
   handleSetNotePinned,
+  handleReorderPinnedNotes,
 };
 
 describe('PinnedNotesPanel', () => {
@@ -58,6 +60,7 @@ describe('PinnedNotesPanel', () => {
     expect(
       screen.getByRole('button', { name: 'Actions for Project decisions' }).className,
     ).toContain('opacity-100');
+    expect(screen.queryByRole('button', { name: 'Reorder Project decisions' })).toBeNull();
   });
 
   it('selects a note through history and requests editor focus', () => {
@@ -93,5 +96,34 @@ describe('PinnedNotesPanel', () => {
     const emptyState = screen.getByText('Pinned notes will appear here');
     expect(emptyState.className).toContain('mt-6');
     expect(screen.queryByRole('heading')).toBeNull();
+  });
+
+  it('moves a pinned note with the accessible actions menu', () => {
+    render(<PinnedNotesPanel />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Project decisions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move down' }));
+
+    expect(handleReorderPinnedNotes).toHaveBeenCalledWith([1, 2]);
+  });
+
+  it('reorders pinned notes by dragging the whole row', () => {
+    render(<PinnedNotesPanel />);
+    const dataTransfer = {
+      effectAllowed: '',
+      setData: vi.fn(),
+    };
+    const sourceRow = screen.getByRole('button', { name: 'Open Project decisions' }).parentElement;
+    const targetRow = screen.getByRole('button', { name: 'Open Untitled Note' }).parentElement;
+
+    fireEvent.dragStart(sourceRow!, { dataTransfer });
+    fireEvent.dragOver(targetRow!, { dataTransfer });
+
+    expect(handleReorderPinnedNotes).not.toHaveBeenCalled();
+
+    fireEvent.dragEnd(sourceRow!, { dataTransfer });
+
+    expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', '2');
+    expect(handleReorderPinnedNotes).toHaveBeenCalledWith([1, 2]);
   });
 });

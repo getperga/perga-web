@@ -71,11 +71,7 @@ describe('useMoveToFolderItems', () => {
 
   it('disables the moving folder and all of its descendants', () => {
     render(
-      <TestMoveMenu
-        currentFolderId={1}
-        movingFolder={folderTree.subfolders[0]}
-        onMove={vi.fn()}
-      />,
+      <TestMoveMenu currentFolderId={1} movingFolder={folderTree.subfolders[0]} onMove={vi.fn()} />,
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Actions' }));

@@ -114,9 +114,9 @@ describe('NotesFoldersNote pin action', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Note actions' }));
     fireEvent.click(screen.getByText('Move to…'));
-    expect((screen.getByRole('button', { name: 'Move to Notes' }) as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(
+      (screen.getByRole('button', { name: 'Move to Notes' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Move to Projects' }));
 
     expect(notesContext.handleMoveNote).toHaveBeenCalledWith(note.id, 2);
