@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.2.5] - 2026-11-06
+
+### Added
+
+- duplicate and moveTo note actions
+- trash status in notes editor menu bar
+- pinned notes reordering
+- hotkeys for notes
+- refresh on visible
+
+### Changed
+
+- updated deps
+- search modal
+
+### Fixed
+
+- useNoteFind hook
+- notes editor task list
+
 ## [1.2.4] - 2026-10-23
 
 ### Added
