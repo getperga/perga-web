@@ -190,6 +190,24 @@ describe('NotesEditorMenuBar', () => {
     expect(onPinClick).toHaveBeenCalledOnce();
   });
 
+  it('renders the Trash status immediately after the pin action', () => {
+    const editor = createMockEditor();
+    const onPinClick = vi.fn();
+    render(
+      <NotesEditorMenuBar
+        editor={editor}
+        isPinned={true}
+        isInTrash={true}
+        onPinClick={onPinClick}
+      />,
+    );
+
+    const pinButton = screen.getByRole('button', { name: 'Unpin note' });
+    const trashStatus = screen.getByRole('img', { name: 'Note is in Trash' });
+    expect(pinButton.nextElementSibling).toBe(trashStatus);
+    expect(trashStatus.getAttribute('title')).toBe('Note is in Trash');
+  });
+
   describe('setLink', () => {
     it('sets link when URL is provided', () => {
       const editor = createMockEditor();

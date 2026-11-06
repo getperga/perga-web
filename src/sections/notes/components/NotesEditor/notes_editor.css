@@ -51,7 +51,7 @@
 .tiptap ul[data-type='taskList'] li p {
   margin-bottom: 5px;
 }
-.tiptap ul[data-type='taskList'] li[data-checked='true'] > div {
+.tiptap ul[data-type='taskList'] li[data-checked='true'] > div > p {
   color: var(--text-muted);
   text-decoration: line-through;
 }

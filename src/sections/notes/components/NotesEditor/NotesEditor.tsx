@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import type { NoteDTO } from '@api/notes';
 import { cleanEditorHTML } from '@common/utils/string_utils';
+import { NoteList } from '@notes/components/NotesEditor/extensions/noteList';
 import { NoteFind } from '@notes/components/NotesEditor/extensions/noteFind.ts';
 import {
   NoteLink,
@@ -16,6 +17,7 @@ import { NotesEditorFindBar } from '@notes/components/NotesEditor/NotesEditorFin
 import { NotesEditorMenuBar } from '@notes/components/NotesEditor/NotesEditorMenuBar/NotesEditorMenuBar';
 import { useNotesDebounceUpdate } from '@notes/components/NotesEditor/useNotesDebounceUpdate';
 import { useNotesFind } from '@notes/components/NotesEditor/useNotesFind';
+import { useNotesEditorHotkeys } from '@notes/components/NotesEditor/useNotesEditorHotkeys';
 import '@notes/components/NotesEditor/notes_editor.css';
 import { useNotes } from '@notes/context';
 
@@ -67,6 +69,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
         nested: true,
       }),
       NoteFind,
+      NoteList,
     ],
     content: note?.body || '',
     onUpdate: () => {
@@ -160,12 +163,14 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
     debounceUpdate(undefined, newBody);
   };
 
-  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
-      e.preventDefault();
-      toggleFindBar();
-    }
-  };
+  const { handleEditorKeyDown } = useNotesEditorHotkeys({
+    noteId,
+    canOpenPreviousNote,
+    canOpenNextNote,
+    openPreviousNote,
+    openNextNote,
+    toggleFindBar,
+  });
 
   if (!note) {
     return (
@@ -186,8 +191,9 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
             type="button"
             onClick={openPreviousNote}
             disabled={!canOpenPreviousNote}
-            title="Previous note"
+            title="Previous note (Alt+Left)"
             aria-label="Previous note"
+            aria-keyshortcuts="Alt+ArrowLeft"
             className="p-1 rounded text-text-muted hover:bg-bg-hover hover:text-text-main transition-colors disabled:opacity-30 disabled:pointer-events-none"
           >
             <ChevronLeft size={20} />
@@ -196,8 +202,9 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
             type="button"
             onClick={openNextNote}
             disabled={!canOpenNextNote}
-            title="Next note"
+            title="Next note (Alt+Right)"
             aria-label="Next note"
+            aria-keyshortcuts="Alt+ArrowRight"
             className="p-1 rounded text-text-muted hover:bg-bg-hover hover:text-text-main transition-colors disabled:opacity-30 disabled:pointer-events-none"
           >
             <ChevronRight size={20} />
@@ -218,6 +225,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
         editor={editor}
         onFindClick={toggleFindBar}
         isPinned={note.is_pinned}
+        isInTrash={isInTrash}
         onPinClick={
           isInTrash ? undefined : () => void handleSetNotePinned(note.id, !note.is_pinned)
         }

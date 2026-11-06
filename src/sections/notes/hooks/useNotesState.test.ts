@@ -7,7 +7,9 @@ import { useNotesState } from './useNotesState';
 const apiMocks = vi.hoisted(() => ({
   getFolders: vi.fn(),
   getNote: vi.fn(),
+  createNote: vi.fn(),
   updateNote: vi.fn(),
+  reorderPinnedNotes: vi.fn(),
 }));
 const toastMocks = vi.hoisted(() => ({ showError: vi.fn() }));
 
@@ -20,8 +22,9 @@ vi.mock('@api/notes', () => ({
   getNote: apiMocks.getNote,
   createFolder: vi.fn(),
   updateFolder: vi.fn(),
-  createNote: vi.fn(),
+  createNote: apiMocks.createNote,
   updateNote: apiMocks.updateNote,
+  reorderPinnedNotes: apiMocks.reorderPinnedNotes,
   emptyTrash: vi.fn(),
   exportNotes: vi.fn(),
   importNotes: vi.fn(),
@@ -72,6 +75,10 @@ describe('useNotesState note history', () => {
     apiMocks.getNote.mockImplementation((id: number) =>
       Promise.resolve({ data: { ...notes[id - 1], body: '' } }),
     );
+    apiMocks.createNote.mockResolvedValue({
+      data: { ...notes[99], id: 101, body: '' },
+    });
+    apiMocks.reorderPinnedNotes.mockResolvedValue({ data: [] });
     apiMocks.updateNote.mockImplementation(
       (id: number, changes: { title?: string; body?: string; is_pinned?: boolean }) =>
         Promise.resolve({
@@ -163,6 +170,34 @@ describe('useNotesState note history', () => {
 
     await act(async () => result.current.handleRenameNote(2, 'Updated title'));
     expect(apiMocks.getFolders).toHaveBeenCalledTimes(3);
+  });
+
+  it('duplicates a note in the same folder and opens the copy', async () => {
+    apiMocks.getNote.mockResolvedValueOnce({
+      data: { ...notes[0], title: 'Source title', body: '<p>Source body</p>' },
+    });
+    apiMocks.createNote.mockResolvedValueOnce({
+      data: {
+        ...notes[0],
+        id: 101,
+        title: 'Source title (copy)',
+        body: '<p>Source body</p>',
+      },
+    });
+
+    const { result } = renderHook(() => useNotesState());
+    await waitFor(() => expect(result.current.rootFolder).not.toBeNull());
+
+    await act(async () => result.current.handleDuplicateNote(1));
+
+    expect(apiMocks.getNote).toHaveBeenCalledWith(1);
+    expect(apiMocks.createNote).toHaveBeenCalledWith({
+      folder_id: 1,
+      title: 'Source title (copy)',
+      body: '<p>Source body</p>',
+    });
+    expect(result.current.selectedNoteId).toBe(101);
+    expect(apiMocks.getFolders).toHaveBeenCalledTimes(2);
   });
 
   it('collects pinned notes recursively with folder paths and sorts them by update time', async () => {
@@ -295,5 +330,28 @@ describe('useNotesState note history', () => {
 
     rerender({ loadSelectedNote: true });
     await waitFor(() => expect(apiMocks.getNote).toHaveBeenCalledWith(1, expect.any(AbortSignal)));
+  });
+
+  it('sorts pinned notes by their manual indexes and saves a reordered list optimistically', async () => {
+    apiMocks.getFolders.mockResolvedValue({
+      data: {
+        ...foldersResponse,
+        root_folder: {
+          ...foldersResponse.root_folder,
+          notes: [
+            { ...notes[0], is_pinned: true, pin_index: 1 },
+            { ...notes[1], is_pinned: true, pin_index: 0 },
+          ],
+        },
+      },
+    });
+
+    const { result } = renderHook(() => useNotesState());
+    await waitFor(() => expect(result.current.pinnedNotes.map((note) => note.id)).toEqual([2, 1]));
+
+    await act(async () => result.current.handleReorderPinnedNotes([1, 2]));
+
+    expect(result.current.pinnedNotes.map((note) => note.id)).toEqual([1, 2]);
+    expect(apiMocks.reorderPinnedNotes).toHaveBeenCalledWith({ note_ids: [1, 2] });
   });
 });

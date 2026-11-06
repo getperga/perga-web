@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import { NotesEditor } from './NotesEditor';
@@ -37,6 +37,12 @@ const note: NoteDTO = {
 };
 
 describe('NotesEditor', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    notesContext.canOpenPreviousNote = false;
+    notesContext.canOpenNextNote = false;
+  });
+
   it('pins the current note from the editor toolbar', () => {
     render(<NotesEditor note={note} onUpdate={async () => {}} />);
 
@@ -51,6 +57,7 @@ describe('NotesEditor', () => {
     render(<NotesEditor note={note} onUpdate={async () => {}} />);
 
     expect(screen.queryByRole('button', { name: 'Pin note' })).toBeNull();
+    expect(screen.getByRole('img', { name: 'Note is in Trash' })).toBeDefined();
     notesContext.trashItemIds.noteIds = [];
   });
 
@@ -60,8 +67,8 @@ describe('NotesEditor', () => {
 
     render(<NotesEditor note={note} onUpdate={async () => {}} />);
 
-    fireEvent.click(screen.getByTitle('Previous note'));
-    fireEvent.click(screen.getByTitle('Next note'));
+    fireEvent.click(screen.getByRole('button', { name: 'Previous note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next note' }));
 
     expect(notesContext.openPreviousNote).toHaveBeenCalledOnce();
     expect(notesContext.openNextNote).toHaveBeenCalledOnce();
@@ -128,4 +135,78 @@ describe('NotesEditor', () => {
       expect(document.querySelectorAll('.note-find-match, .note-find-current').length).toBe(0);
     });
   });
+
+  it('navigates history with Alt+arrows from the title and editor', () => {
+    notesContext.canOpenPreviousNote = true;
+    notesContext.canOpenNextNote = true;
+    render(<NotesEditor note={note} onUpdate={async () => {}} />);
+
+    expect(
+      fireEvent.keyDown(screen.getByPlaceholderText('Note title'), {
+        key: 'ArrowLeft',
+        altKey: true,
+      }),
+    ).toBe(false);
+    expect(
+      fireEvent.keyDown(document.querySelector('.tiptap')!, {
+        key: 'ArrowRight',
+        altKey: true,
+      }),
+    ).toBe(false);
+
+    expect(notesContext.openPreviousNote).toHaveBeenCalledOnce();
+    expect(notesContext.openNextNote).toHaveBeenCalledOnce();
+    expect(screen.getByTitle('Previous note (Alt+Left)')).toBeDefined();
+    expect(screen.getByTitle('Next note (Alt+Right)')).toBeDefined();
+  });
+
+  it('blocks browser navigation at history boundaries and uses updated availability', () => {
+    const { rerender } = render(<NotesEditor note={note} onUpdate={async () => {}} />);
+
+    for (const key of ['ArrowLeft', 'ArrowRight']) {
+      expect(fireEvent.keyDown(window, { key, altKey: true })).toBe(false);
+    }
+    expect(notesContext.openPreviousNote).not.toHaveBeenCalled();
+    expect(notesContext.openNextNote).not.toHaveBeenCalled();
+
+    notesContext.canOpenPreviousNote = true;
+    rerender(<NotesEditor note={note} onUpdate={async () => {}} />);
+    fireEvent.keyDown(window, { key: 'ArrowLeft', altKey: true });
+    expect(notesContext.openPreviousNote).toHaveBeenCalledOnce();
+  });
+
+  it('leaves other arrow shortcuts unchanged and removes its listener on unmount', () => {
+    notesContext.canOpenPreviousNote = true;
+    notesContext.canOpenNextNote = true;
+    const { unmount } = render(<NotesEditor note={note} onUpdate={async () => {}} />);
+
+    for (const modifiers of [
+      {},
+      { altKey: true, shiftKey: true },
+      { altKey: true, ctrlKey: true },
+      { altKey: true, metaKey: true },
+      { altKey: true, isComposing: true },
+    ]) {
+      expect(fireEvent.keyDown(window, { key: 'ArrowLeft', ...modifiers })).toBe(true);
+    }
+    const handledEvent = new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      altKey: true,
+      cancelable: true,
+    });
+    handledEvent.preventDefault();
+    fireEvent(window, handledEvent);
+    expect(notesContext.openPreviousNote).not.toHaveBeenCalled();
+
+    unmount();
+    expect(fireEvent.keyDown(window, { key: 'ArrowRight', altKey: true })).toBe(true);
+    expect(notesContext.openNextNote).not.toHaveBeenCalled();
+  });
+
+  it('does not intercept history shortcuts when no note is selected', () => {
+    render(<NotesEditor note={null} onUpdate={async () => {}} />);
+    expect(fireEvent.keyDown(window, { key: 'ArrowLeft', altKey: true })).toBe(true);
+    expect(notesContext.openPreviousNote).not.toHaveBeenCalled();
+  });
+
 });
