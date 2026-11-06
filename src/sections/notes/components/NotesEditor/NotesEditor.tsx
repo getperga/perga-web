@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import type { NoteDTO } from '@api/notes';
 import { cleanEditorHTML } from '@common/utils/string_utils';
+import { NoteList } from '@notes/components/NotesEditor/extensions/noteList';
 import { NoteFind } from '@notes/components/NotesEditor/extensions/noteFind.ts';
 import {
   NoteLink,
@@ -67,6 +68,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
         nested: true,
       }),
       NoteFind,
+      NoteList,
     ],
     content: note?.body || '',
     onUpdate: () => {
