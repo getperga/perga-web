@@ -3,10 +3,12 @@ import { Outlet } from 'react-router-dom';
 
 import { ToastProvider } from '@common/contexts/toast';
 import { NotesProvider } from '@notes/context';
+import { useRefreshOnVisible } from '@common/hooks/useRefreshOnVisible';
 import { MobileHeader } from '@sections/MobileHeader';
 import { Sidebar } from '@sections/Sidebar';
 
 export const Layout = () => {
+  useRefreshOnVisible();
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
 
   const toggleSidebar = () => {
