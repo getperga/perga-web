@@ -93,6 +93,12 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
 
   // sync external changes to editor
   useEffect(() => {
+    // useEditor can replace an unmounted instance before this effect runs.
+    // wait for its live replacement before marking the note as synchronized.
+    if (!editor || editor.isDestroyed) {
+      return;
+    }
+
     // update values if user switched note and there is no pending update
     if (lastSyncedNoteIdRef.current !== noteId && !hasPendingUpdate) {
       // normalize vars that can be various types for comparing
@@ -109,7 +115,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
 
   // focus editor when focusTrigger changes
   useEffect(() => {
-    if (focusTrigger > 0 && editor) {
+    if (focusTrigger > 0 && editor && !editor.isDestroyed) {
       editor.commands.focus('start');
     }
   }, [focusTrigger, editor]);

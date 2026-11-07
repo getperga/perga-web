@@ -1,9 +1,24 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { StrictMode } from 'react';
+import type { Editor } from '@tiptap/react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import { NotesEditor } from './NotesEditor';
 import type { NoteDTO } from '@api/notes';
 import { saveNoteFindQueryToStorage } from '@notes/utils';
+
+const editorInstance = vi.hoisted(() => ({ current: null as Editor | null }));
+vi.mock('@tiptap/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tiptap/react')>();
+  return {
+    ...actual,
+    useEditor: (...args: Parameters<typeof actual.useEditor>) => {
+      const editor = actual.useEditor(...args);
+      editorInstance.current = editor;
+      return editor;
+    },
+  };
+});
 
 const notesContext = vi.hoisted(() => ({
   trashItemIds: { folderIds: [] as number[], noteIds: [] as number[] },
@@ -37,6 +52,32 @@ const note: NoteDTO = {
 };
 
 describe('NotesEditor', () => {
+  it('waits for a live editor replacement before synchronizing a note', async () => {
+    const onUpdate = async () => {};
+    const { rerender } = render(<NotesEditor note={note} onUpdate={onUpdate} />);
+    editorInstance.current?.destroy();
+    const nextNote = { ...note, id: 2, body: '<p>Replacement editor content</p>' };
+    rerender(<NotesEditor note={nextNote} onUpdate={onUpdate} />);
+    await waitFor(() => {
+      expect(document.querySelector('.tiptap')?.textContent).toBe('Replacement editor content');
+    });
+  });
+  it('reopens a selected note after leaving the notes screen', async () => {
+    const first = render(
+      <StrictMode>
+        <NotesEditor note={note} onUpdate={async () => {}} />
+      </StrictMode>,
+    );
+    first.unmount();
+    render(
+      <StrictMode>
+        <NotesEditor note={note} onUpdate={async () => {}} />
+      </StrictMode>,
+    );
+    await waitFor(() => {
+      expect(document.querySelector('.tiptap')?.textContent).toContain('quick fox');
+    });
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     notesContext.canOpenPreviousNote = false;
