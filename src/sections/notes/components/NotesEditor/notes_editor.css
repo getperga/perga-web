@@ -10,6 +10,25 @@
   outline: none;
 }
 
+.tiptap .note-image {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: bottom;
+}
+
+.tiptap .note-image img {
+  max-width: 100%;
+  height: auto;
+}
+
+.tiptap .note-image [role='status'] {
+  color: var(--text-muted);
+}
+
+.tiptap .note-image.ProseMirror-selectednode {
+  outline: 2px solid var(--text-link);
+}
+
 .tiptap ul {
   list-style-type: disc;
   padding-left: 1rem;

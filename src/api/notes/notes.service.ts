@@ -6,10 +6,6 @@ import type {
   NoteCreateDTO,
   NoteUpdateDTO,
   NoteSearchResultDTO,
-  NotesFolderDTO,
-  NotesFolderCreateDTO,
-  NotesFolderUpdateDTO,
-  NotesFoldersResponseSchemaDTO,
   NotesExportRequestSchema,
   NotesImportResponseDTO,
   PinnedNotesReorderDTO,
@@ -33,18 +29,6 @@ export const searchNotes = (query: string, signal?: AbortSignal) =>
     params: { query },
     signal,
   });
-
-// Notes Folders API methods
-export const getFolders = () =>
-  axios.get<NotesFoldersResponseSchemaDTO>(`${NOTES_API_URL}/folders/`);
-
-export const createFolder = (folder: NotesFolderCreateDTO) =>
-  axios.post<NotesFolderDTO>(`${NOTES_API_URL}/folders/`, folder);
-
-export const updateFolder = (folderId: number, changes: NotesFolderUpdateDTO) =>
-  axios.patch<NotesFolderDTO>(`${NOTES_API_URL}/folders/${folderId}/`, changes);
-
-export const emptyTrash = () => axios.post(`${NOTES_API_URL}/folders/empty-trash/`);
 
 export const exportNotes = (params: NotesExportRequestSchema) =>
   axios.get(`${NOTES_API_URL}/export/`, { params, responseType: 'blob' });

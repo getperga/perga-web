@@ -7,12 +7,10 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import type { NoteDTO } from '@api/notes';
 import { cleanEditorHTML } from '@common/utils/string_utils';
-import { NoteList } from '@notes/components/NotesEditor/extensions/noteList';
 import { NoteFind } from '@notes/components/NotesEditor/extensions/noteFind.ts';
-import {
-  NoteLink,
-  openLinkOnModifierClick,
-} from '@notes/components/NotesEditor/extensions/noteLink';
+import { NoteImage } from '@notes/components/NotesEditor/extensions/noteImage';
+import { NoteLink, openLinkOnModifierClick } from '@notes/components/NotesEditor/extensions/noteLink';
+import { NoteList } from '@notes/components/NotesEditor/extensions/noteList';
 import { NotesEditorFindBar } from '@notes/components/NotesEditor/NotesEditorFindBar/NotesEditorFindBar';
 import { NotesEditorMenuBar } from '@notes/components/NotesEditor/NotesEditorMenuBar/NotesEditorMenuBar';
 import { useNotesDebounceUpdate } from '@notes/components/NotesEditor/useNotesDebounceUpdate';
@@ -70,6 +68,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
       }),
       NoteFind,
       NoteList,
+      NoteImage,
     ],
     content: note?.body || '',
     onUpdate: () => {

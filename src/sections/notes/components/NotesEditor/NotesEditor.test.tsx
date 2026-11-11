@@ -8,6 +8,14 @@ import type { NoteDTO } from '@api/notes';
 import { saveNoteFindQueryToStorage } from '@notes/utils';
 
 const editorInstance = vi.hoisted(() => ({ current: null as Editor | null }));
+vi.mock('@/config', () => {
+  return {
+    getConfig: () => {
+      return { API_BASE_URL: '/api/v1' };
+    },
+  };
+});
+
 vi.mock('@tiptap/react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tiptap/react')>();
   return {
