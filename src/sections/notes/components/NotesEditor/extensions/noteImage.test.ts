@@ -82,6 +82,54 @@ describe('NoteImage', () => {
     expect(editor.getHTML()).toContain(`src="${CONTENT_URL}"`);
     expect(editor.getHTML()).not.toContain('blob:');
   });
+  it('previews a drag and saves one undoable resize without reloading the image', async () => {
+    const editor = createEditor(
+      IMAGE_HTML.replace('alt="Screenshot"', 'alt="Screenshot" width="100"'),
+    );
+    await waitFor(() => {
+      expect(URL.createObjectURL).toHaveBeenCalledOnce();
+    });
+    const image = editor.view.dom.querySelector<HTMLImageElement>('.note-image img')!;
+    const handle = editor.view.dom.querySelector<HTMLButtonElement>('.note-image-resize')!;
+    image.dispatchEvent(new Event('load'));
+    expect(handle.hidden).toBe(false);
+    Object.defineProperty(editor.view.dom, 'clientWidth', { value: 300 });
+    vi.spyOn(image, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 100, 50));
+    handle.setPointerCapture = vi.fn();
+    const pointer = (type: string, clientX: number, clientY = 0) => {
+      const event = new MouseEvent(type, { clientX, clientY, bubbles: true, cancelable: true });
+      Object.defineProperty(event, 'pointerId', { value: 1 });
+      handle.dispatchEvent(event);
+    };
+    const onUpdate = vi.fn();
+    editor.on('update', onUpdate);
+
+    pointer('pointerdown', 100);
+    pointer('pointermove', 100, 50);
+    expect(image.style.width).toBe('120px');
+    pointer('pointermove', 500);
+    expect(image.style.width).toBe('300px');
+    expect(onUpdate).not.toHaveBeenCalled();
+    pointer('pointercancel', 500);
+    expect(image.style.width).toBe('');
+    expect(editor.getHTML()).toContain('width="100"');
+
+    pointer('pointerdown', 100);
+    pointer('pointermove', 160, 30);
+    pointer('pointerup', 160, 30);
+    expect(onUpdate).toHaveBeenCalledOnce();
+    expect(editor.getHTML()).toContain('width="160"');
+    expect(editor.getHTML()).toContain(`src="${CONTENT_URL}"`);
+    expect(image.getAttribute('width')).toBe('160');
+    expect(image.getAttribute('src')).toBe(BLOB_URL);
+    expect(getNoteAttachmentContent).toHaveBeenCalledOnce();
+
+    const reopened = createEditor(editor.getHTML());
+    expect(reopened.view.dom.querySelector('.note-image img')?.getAttribute('width')).toBe('160');
+    expect(editor.commands.undo()).toBe(true);
+    expect(image.getAttribute('width')).toBe('100');
+    expect(editor.getHTML()).toContain('width="100"');
+  });
   it('ignores a response arriving after the image has been removed', async () => {
     let resolveRequest!: (value: Awaited<ReturnType<typeof getNoteAttachmentContent>>) => void;
     vi.mocked(getNoteAttachmentContent).mockImplementation(() => {
