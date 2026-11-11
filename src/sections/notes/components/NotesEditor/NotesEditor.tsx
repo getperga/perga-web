@@ -48,6 +48,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
     handleSetNotePinned,
   } = useNotes();
   const isInTrash = note?.id ? trashItemIds.noteIds.includes(note.id) : false;
+  const noteId = note?.id;
 
   const [title, setTitle] = useState(note?.title || '');
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -92,10 +93,8 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
       },
     },
     editable: !isInTrash,
-  });
+  }, [noteId]);
 
-  // extract note values for using in dependencies
-  const noteId = note?.id;
   const noteTitle = note?.title;
   const noteBody = note?.body;
   const { uploadImages, isUploading, uploadError } = useNoteImageUpload(
@@ -111,19 +110,18 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
       return;
     }
 
-    // autosave hook flushes changes to the previous note on switch
+    // each note gets a new editor and its own undo history
     if (lastSyncedNoteIdRef.current !== noteId) {
-      // normalize vars that can be various types for comparing
-      const normalizedNoteTitle = noteTitle || '';
-      const normalizedNoteBody = noteBody || '';
-
       lastSyncedNoteIdRef.current = noteId;
-      setTitle(normalizedNoteTitle);
-      if (editor) {
-        editor.commands.setContent(normalizedNoteBody, { emitUpdate: false });
-      }
+      setTitle(noteTitle || '');
     }
-  }, [noteId, noteTitle, noteBody, editor]);
+  }, [noteId, noteTitle, editor]);
+
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      editor.setEditable(!isInTrash, false);
+    }
+  }, [editor, isInTrash]);
 
   // focus editor when focusTrigger changes
   useEffect(() => {

@@ -86,6 +86,7 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
     return { ids: noteIds, index };
   });
   const selectedNoteIdRef = useRef(selectedNoteId);
+  const pendingNoteSaves = useRef(new Map<number, Promise<void>>());
   const notesHistoryRef = useRef(notesHistoryState);
   const [selectedNote, setSelectedNote] = useState<NoteDTO | null>(null);
   const [focusTrigger, setFocusTrigger] = useState(0);
@@ -369,17 +370,34 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
 
   const handleUpdateNote = useCallback(
     async (noteId: number, title: string | undefined, body: string | undefined) => {
-      try {
-        const response = await updateNote(noteId, { title, body });
-        if (selectedNoteIdRef.current === noteId) {
-          setSelectedNote(response.data);
+      const save = async () => {
+        try {
+          const response = await updateNote(noteId, { title, body });
+          if (selectedNoteIdRef.current === noteId) {
+            setSelectedNote((current) => {
+              return current?.id === noteId ? response.data : current;
+            });
+          }
+          await fetchFolders();
+        } catch (error) {
+          console.error('Error updating note:', error);
+          showError('Failed to save note');
         }
-        await fetchFolders();
-      } catch (error) {
-        console.error('Error updating note:', error);
+      };
+
+      // preserve the order of body edits, including undo while a save is in progress
+      const previous = pendingNoteSaves.current.get(noteId);
+      const request = previous ? previous.then(save, save) : save();
+      pendingNoteSaves.current.set(noteId, request);
+      try {
+        await request;
+      } finally {
+        if (pendingNoteSaves.current.get(noteId) === request) {
+          pendingNoteSaves.current.delete(noteId);
+        }
       }
     },
-    [fetchFolders],
+    [fetchFolders, showError],
   );
 
   const handleExportNotes = useCallback(
@@ -484,13 +502,25 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
     }
 
     const requestController = new AbortController();
-    getNote(selectedNoteId, requestController.signal)
-      .then((response) => setSelectedNote(response.data))
-      .catch((error) => {
-        if (!requestController.signal.aborted) {
-          console.error('Error fetching note content:', error);
-        }
-      });
+    const loadNote = async () => {
+      const pendingSave = pendingNoteSaves.current.get(selectedNoteId);
+      if (pendingSave) {
+        await pendingSave;
+      }
+      if (requestController.signal.aborted) {
+        return;
+      }
+
+      const response = await getNote(selectedNoteId, requestController.signal);
+      if (!requestController.signal.aborted) {
+        setSelectedNote(response.data);
+      }
+    };
+    void loadNote().catch((error) => {
+      if (!requestController.signal.aborted) {
+        console.error('Error fetching note content:', error);
+      }
+    });
 
     return () => requestController.abort();
   }, [loadSelectedNote, selectedNoteId]);

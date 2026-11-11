@@ -354,4 +354,47 @@ describe('useNotesState note history', () => {
     expect(result.current.pinnedNotes.map((note) => note.id)).toEqual([1, 2]);
     expect(apiMocks.reorderPinnedNotes).toHaveBeenCalledWith({ note_ids: [1, 2] });
   });
+
+  it('saves image removal before undo and waits for both saves when reopening the note', async () => {
+    const original = { ...notes[0], body: '<p><img data-attachment-id="42"></p>' };
+    const removed = { ...original, body: '<p></p>' };
+    const deletion = deferred<{ data: typeof removed }>();
+    const restoration = deferred<{ data: typeof original }>();
+    localStorage.clear();
+    apiMocks.getFolders.mockResolvedValue({ data: foldersResponse });
+    apiMocks.getNote.mockReset().mockResolvedValue({ data: original });
+    apiMocks.updateNote
+      .mockReset()
+      .mockReturnValueOnce(deletion.promise)
+      .mockReturnValueOnce(restoration.promise);
+    const { result } = renderHook(() => useNotesState());
+
+    let saves!: Promise<void>[];
+    act(() => {
+      saves = [
+        result.current.handleUpdateNote(original.id, undefined, removed.body),
+        result.current.handleUpdateNote(original.id, undefined, original.body),
+      ];
+      result.current.setSelectedNoteId(original.id);
+    });
+    expect(apiMocks.updateNote).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getNote).not.toHaveBeenCalled();
+
+    await act(async () => {
+      deletion.resolve({ data: removed });
+      await saves[0];
+    });
+    expect(apiMocks.updateNote).toHaveBeenNthCalledWith(2, original.id, {
+      title: undefined,
+      body: original.body,
+    });
+    expect(apiMocks.getNote).not.toHaveBeenCalled();
+
+    await act(async () => {
+      restoration.resolve({ data: original });
+      await saves[1];
+    });
+    expect(apiMocks.getNote).toHaveBeenCalledOnce();
+    expect(result.current.selectedNote?.body).toBe(original.body);
+  });
 });

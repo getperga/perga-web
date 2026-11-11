@@ -361,4 +361,46 @@ describe('NotesEditor', () => {
     expect(fireEvent.keyDown(window, { key: 'ArrowLeft', altKey: true })).toBe(true);
     expect(notesContext.openPreviousNote).not.toHaveBeenCalled();
   });
+
+  it('autosaves removal and restores the same attachment when the user undoes it', async () => {
+    const src = uploadedImage.data.url;
+    const body = `<p>Before<img src="${src}" data-attachment-id="42">After</p>`;
+    const onUpdate = vi.fn<ComponentProps<typeof NotesEditor>['onUpdate']>(async () => {});
+    const { unmount } = render(<NotesEditor note={{ ...note, body }} onUpdate={onUpdate} />);
+
+    act(() => {
+      const editor = editorInstance.current!;
+      const imagePosition = 1 + 'Before'.length;
+      editor.commands.setNodeSelection(imagePosition);
+      editor.commands.deleteSelection();
+    });
+    await waitFor(
+      () => {
+        expect(onUpdate).toHaveBeenLastCalledWith(note.id, undefined, '<p>BeforeAfter</p>');
+      },
+      { timeout: 2000 },
+    );
+
+    act(() => {
+      editorInstance.current?.commands.undo();
+    });
+    unmount();
+    expect(onUpdate.mock.lastCall?.[2]).toContain(`src="${src}"`);
+    expect(onUpdate.mock.lastCall?.[2]).toContain('data-attachment-id="42"');
+    expect(onUpdate).toHaveBeenCalledTimes(2);
+    expect(uploadNoteAttachment).not.toHaveBeenCalled();
+  });
+
+  it('does not undo edits from a previously opened note', () => {
+    const onUpdate = vi.fn(async () => {});
+    const { rerender } = render(<NotesEditor note={note} onUpdate={onUpdate} />);
+    act(() => {
+      editorInstance.current?.commands.insertContentAt(1, 'Edited ');
+    });
+    const nextNote = { ...note, id: 2, body: '<p>Another note</p>' };
+    rerender(<NotesEditor note={nextNote} onUpdate={onUpdate} />);
+    expect(editorInstance.current?.commands.undo()).toBe(false);
+    expect(editorInstance.current?.getHTML()).toBe(nextNote.body);
+  });
+
 });
