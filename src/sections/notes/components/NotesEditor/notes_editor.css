@@ -10,6 +10,61 @@
   outline: none;
 }
 
+.tiptap .note-image {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: bottom;
+}
+
+.tiptap .note-image img {
+  max-width: 100%;
+  height: auto;
+}
+
+.tiptap .note-image [role='status'] {
+  color: var(--text-muted);
+}
+
+.tiptap .note-image.ProseMirror-selectednode {
+  outline: 2px solid var(--text-link);
+}
+
+.tiptap .note-image-resize {
+  position: absolute;
+  inset-inline-end: 3px;
+  bottom: 3px;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--bg-main);
+  border-radius: 4px;
+  background: var(--text-link);
+  color: var(--bg-main);
+  cursor: nwse-resize;
+  touch-action: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tiptap .note-image-resize::before {
+  content: '⤡';
+  display: block;
+  font-size: 12px;
+  line-height: 14px;
+}
+
+.tiptap[contenteditable='true'] .note-image:hover .note-image-resize,
+.tiptap[contenteditable='true'] .note-image.ProseMirror-selectednode .note-image-resize,
+.tiptap[contenteditable='true'] .note-image-resize:focus-visible,
+.tiptap[contenteditable='true'] .note-image-resize:active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tiptap[contenteditable='false'] .note-image-resize {
+  display: none;
+}
+
 .tiptap ul {
   list-style-type: disc;
   padding-left: 1rem;

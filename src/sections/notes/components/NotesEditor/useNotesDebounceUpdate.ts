@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import type { NoteDTO } from '@api/notes';
+
+const AUTOSAVE_DELAY_MS = 1000;
 
 interface UseNotesDebounceUpdateProps {
   selectedNote: NoteDTO | null;
@@ -9,76 +11,55 @@ interface UseNotesDebounceUpdateProps {
 
 export const useNotesDebounceUpdate = ({ selectedNote, onUpdate }: UseNotesDebounceUpdateProps) => {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const editingNoteId = useRef(selectedNote?.id);
-  const pendingChangesRef = useRef<{
-    title?: string;
-    body?: string;
-  }>({});
-  const selectedNoteId = selectedNote?.id;
+  const pendingChanges = useRef<{ title?: string; body?: string }>({});
+  const noteId = selectedNote?.id;
 
-  // Update tracking ref on the note change
-  useEffect(() => {
-    if (editingNoteId.current !== selectedNoteId) {
-      // reset ref values if selected note changed
-      editingNoteId.current = selectedNoteId;
-      pendingChangesRef.current = {};
-    }
-  }, [selectedNoteId]);
+  const flush = useCallback(
+    (id: number) => {
+      const { title, body } = pendingChanges.current;
 
-  // Use debounce timer to reduce number of update api requests
-  // send request only when user stopped typing for 1000ms
-  const debounceUpdate = (newTitle: string | undefined, newBody: string | undefined) => {
-    if (!selectedNoteId) {
-      return;
-    }
+      pendingChanges.current = {};
+      if (title !== undefined || body !== undefined) {
+        void onUpdate(id, title, body);
+      }
+    },
+    [onUpdate],
+  );
 
-    if (newTitle !== undefined && newTitle !== selectedNote?.title) {
-      pendingChangesRef.current.title = newTitle;
-    }
-    if (newBody !== undefined && newBody !== selectedNote?.body) {
-      pendingChangesRef.current.body = newBody;
-    }
-
-    // clear timer on every user input
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-
-    // in case of actual changes, start timer
-    if (pendingChangesRef.current) {
-      timerRef.current = setTimeout(() => {
-        // Ensure we are still editing the same note
-        if (editingNoteId.current === selectedNote.id) {
-          const { title: currentTitle, body: currentBody } = pendingChangesRef.current;
-          void onUpdate(selectedNote.id, currentTitle, currentBody);
-          pendingChangesRef.current = {};
-        }
-
-        timerRef.current = null;
-      }, 1000);
-    }
-  };
-
-  // save pending changes when switching notes or unmounting
   useEffect(() => {
     return () => {
-      // clear timer
-      if (timerRef.current) {
+      if (timerRef.current !== null) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
 
-      // save pending changes for editing note
-      if (selectedNoteId && editingNoteId.current === selectedNoteId && pendingChangesRef.current) {
-        const { title: pendingTitle, body: pendingBody } = pendingChangesRef.current;
-        void onUpdate(selectedNoteId, pendingTitle, pendingBody);
+      if (noteId === undefined) {
+        return;
       }
-    };
-  }, [selectedNoteId, onUpdate]);
 
-  return {
-    debounceUpdate,
-    hasPendingUpdate: !!timerRef.current,
+      flush(noteId);
+    };
+  }, [noteId, flush]);
+
+  const debounceUpdate = (title: string | undefined, body: string | undefined) => {
+    if (noteId === undefined) {
+      return;
+    }
+    if (title !== undefined) {
+      pendingChanges.current.title = title;
+    }
+    if (body !== undefined) {
+      pendingChanges.current.body = body;
+    }
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+    }
+
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      flush(noteId);
+    }, AUTOSAVE_DELAY_MS);
   };
+
+  return { debounceUpdate };
 };

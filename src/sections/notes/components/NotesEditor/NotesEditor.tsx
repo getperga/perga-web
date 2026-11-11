@@ -7,14 +7,20 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import type { NoteDTO } from '@api/notes';
 import { cleanEditorHTML } from '@common/utils/string_utils';
-import { NoteList } from '@notes/components/NotesEditor/extensions/noteList';
 import { NoteFind } from '@notes/components/NotesEditor/extensions/noteFind.ts';
+import { NoteImage } from '@notes/components/NotesEditor/extensions/noteImage';
 import {
   NoteLink,
   openLinkOnModifierClick,
 } from '@notes/components/NotesEditor/extensions/noteLink';
+import { NoteList } from '@notes/components/NotesEditor/extensions/noteList';
 import { NotesEditorFindBar } from '@notes/components/NotesEditor/NotesEditorFindBar/NotesEditorFindBar';
 import { NotesEditorMenuBar } from '@notes/components/NotesEditor/NotesEditorMenuBar/NotesEditorMenuBar';
+import {
+  isImageFile,
+  NOTE_IMAGE_ACCEPT,
+  useNoteImageUpload,
+} from '@notes/components/NotesEditor/useNoteImageUpload';
 import { useNotesDebounceUpdate } from '@notes/components/NotesEditor/useNotesDebounceUpdate';
 import { useNotesFind } from '@notes/components/NotesEditor/useNotesFind';
 import { useNotesEditorHotkeys } from '@notes/components/NotesEditor/useNotesEditorHotkeys';
@@ -42,11 +48,13 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
     handleSetNotePinned,
   } = useNotes();
   const isInTrash = note?.id ? trashItemIds.noteIds.includes(note.id) : false;
+  const noteId = note?.id;
 
   const [title, setTitle] = useState(note?.title || '');
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const lastSyncedNoteIdRef = useRef<number | undefined>(undefined);
-  const { debounceUpdate, hasPendingUpdate } = useNotesDebounceUpdate({
+  const { debounceUpdate } = useNotesDebounceUpdate({
     selectedNote: note,
     onUpdate,
   });
@@ -70,6 +78,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
       }),
       NoteFind,
       NoteList,
+      NoteImage,
     ],
     content: note?.body || '',
     onUpdate: () => {
@@ -84,32 +93,39 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
       },
     },
     editable: !isInTrash,
-  });
+  }, [noteId]);
 
-  // extract note values for using in dependencies
-  const noteId = note?.id;
   const noteTitle = note?.title;
   const noteBody = note?.body;
+  const { uploadImages, isUploading, uploadError } = useNoteImageUpload(
+    editor,
+    isInTrash ? undefined : noteId,
+  );
 
   // sync external changes to editor
   useEffect(() => {
-    // update values if user switched note and there is no pending update
-    if (lastSyncedNoteIdRef.current !== noteId && !hasPendingUpdate) {
-      // normalize vars that can be various types for comparing
-      const normalizedNoteTitle = noteTitle || '';
-      const normalizedNoteBody = noteBody || '';
-
-      lastSyncedNoteIdRef.current = noteId;
-      setTitle(normalizedNoteTitle);
-      if (editor) {
-        editor.commands.setContent(normalizedNoteBody, { emitUpdate: false });
-      }
+    // useEditor can replace an unmounted instance before this effect runs.
+    // wait for its live replacement before marking the note as synchronized.
+    if (!editor || editor.isDestroyed) {
+      return;
     }
-  }, [noteId, noteTitle, noteBody, editor, hasPendingUpdate]);
+
+    // each note gets a new editor and its own undo history
+    if (lastSyncedNoteIdRef.current !== noteId) {
+      lastSyncedNoteIdRef.current = noteId;
+      setTitle(noteTitle || '');
+    }
+  }, [noteId, noteTitle, editor]);
+
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      editor.setEditable(!isInTrash, false);
+    }
+  }, [editor, isInTrash]);
 
   // focus editor when focusTrigger changes
   useEffect(() => {
-    if (focusTrigger > 0 && editor) {
+    if (focusTrigger > 0 && editor && !editor.isDestroyed) {
       editor.commands.focus('start');
     }
   }, [focusTrigger, editor]);
@@ -152,6 +168,34 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
     debounceUpdate(newTitle, undefined);
+  };
+
+  const handleImageFiles = (files: File[], position?: number) => {
+    if (lastSyncedNoteIdRef.current === noteId) {
+      void uploadImages(files, position);
+    }
+  };
+
+  const handleImagePaste = (event: React.ClipboardEvent) => {
+    const files = Array.from(event.clipboardData.files).filter(isImageFile);
+    if (files.length) {
+      event.preventDefault();
+      event.stopPropagation();
+      handleImageFiles(files);
+    }
+  };
+
+  const handleImageDrop = (event: React.DragEvent) => {
+    const files = Array.from(event.dataTransfer.files);
+    if (files.length) {
+      event.preventDefault();
+      event.stopPropagation();
+      const position = editor?.view.posAtCoords({
+        left: event.clientX,
+        top: event.clientY,
+      });
+      handleImageFiles(files, position?.pos);
+    }
   };
 
   const handleBodyChange = () => {
@@ -226,10 +270,33 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
         onFindClick={toggleFindBar}
         isPinned={note.is_pinned}
         isInTrash={isInTrash}
-        onPinClick={
-          isInTrash ? undefined : () => void handleSetNotePinned(note.id, !note.is_pinned)
-        }
+        onPinClick={isInTrash ? undefined : () => void handleSetNotePinned(note.id, !note.is_pinned)}
+        onImageClick={isInTrash ? undefined : () => imageInputRef.current?.click()}
+        isUploadingImage={isUploading}
       />
+      <input
+        key={noteId}
+        ref={imageInputRef}
+        type="file"
+        accept={NOTE_IMAGE_ACCEPT}
+        multiple
+        hidden
+        onChange={(event) => {
+          const files = Array.from(event.currentTarget.files ?? []);
+          event.currentTarget.value = '';
+          handleImageFiles(files);
+        }}
+      />
+      {isUploading && (
+        <div role="status" className="text-sm text-text-muted">
+          Uploading images…
+        </div>
+      )}
+      {uploadError && (
+        <div role="alert" className="text-sm text-text-main">
+          {uploadError}
+        </div>
+      )}
       {isFindBarOpen && (
         <NotesEditorFindBar
           query={findQuery}
@@ -242,7 +309,12 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
           onClose={closeFindBar}
         />
       )}
-      <EditorContent editor={editor} className="flex-1 overflow-hidden flex flex-col" />
+      <EditorContent
+        editor={editor}
+        onPasteCapture={handleImagePaste}
+        onDropCapture={handleImageDrop}
+        className="flex-1 overflow-hidden flex flex-col"
+      />
     </div>
   );
 };

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.6] - 2026-11-11
+
+### Added
+
+- notes attachments api
+- noteImage editor extension
+- ability to insert and resize image in editor
+
 ## [1.2.5] - 2026-11-06
 
 ### Added

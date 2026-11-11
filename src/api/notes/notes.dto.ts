@@ -79,3 +79,15 @@ export interface NoteSearchResultDTO extends NoteMetaDTO {
   match_kind: 'exact' | 'prefix' | 'fuzzy';
   find_query: string | null;
 }
+
+export interface NotesAttachmentDTO {
+  id: number;
+  note_id: number;
+  original_filename: string;
+  content_type: string;
+  size_bytes: number;
+  width: number;
+  height: number;
+  created_dt: string;
+  url: string;
+}
