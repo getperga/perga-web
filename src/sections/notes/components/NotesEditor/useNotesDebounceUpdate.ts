@@ -35,7 +35,7 @@ export const useNotesDebounceUpdate = ({ selectedNote, onUpdate }: UseNotesDebou
     if (newTitle !== undefined && newTitle !== selectedNote?.title) {
       pendingChangesRef.current.title = newTitle;
     }
-    if (newBody !== undefined && newBody !== selectedNote?.body) {
+    if (newBody !== undefined) {
       pendingChangesRef.current.body = newBody;
     }
 
@@ -79,6 +79,5 @@ export const useNotesDebounceUpdate = ({ selectedNote, onUpdate }: UseNotesDebou
 
   return {
     debounceUpdate,
-    hasPendingUpdate: !!timerRef.current,
   };
 };

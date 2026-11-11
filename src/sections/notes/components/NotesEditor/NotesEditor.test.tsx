@@ -1,13 +1,18 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { StrictMode } from 'react';
+import { StrictMode, type ComponentProps } from 'react';
 import type { Editor } from '@tiptap/react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import { NotesEditor } from './NotesEditor';
 import type { NoteDTO } from '@api/notes';
 import { saveNoteFindQueryToStorage } from '@notes/utils';
 
 const editorInstance = vi.hoisted(() => ({ current: null as Editor | null }));
+const uploadNoteAttachment = vi.hoisted(() => vi.fn());
+vi.mock('@api/notes/notesAttachments.service', () => {
+  return { uploadNoteAttachment, getNoteAttachmentContent: vi.fn(() => Promise.reject()) };
+});
+
 vi.mock('@/config', () => {
   return {
     getConfig: () => {
@@ -59,6 +64,15 @@ const note: NoteDTO = {
   is_pinned: false,
 };
 
+const imageFile = new File(['image bytes'], 'screenshot.png', { type: 'image/png' });
+const uploadedImage = {
+  data: {
+    id: 42,
+    url: '/api/v1/notes/1/attachments/42/content/',
+    original_filename: imageFile.name,
+  },
+};
+
 describe('NotesEditor', () => {
   it('waits for a live editor replacement before synchronizing a note', async () => {
     const onUpdate = async () => {};
@@ -88,8 +102,98 @@ describe('NotesEditor', () => {
   });
   beforeEach(() => {
     vi.clearAllMocks();
+    uploadNoteAttachment.mockReset().mockResolvedValue(uploadedImage);
     notesContext.canOpenPreviousNote = false;
     notesContext.canOpenNextNote = false;
+  });
+
+  it('inserts a selected file and autosaves the attachment URL and ID', async () => {
+    const onUpdate = vi.fn<ComponentProps<typeof NotesEditor>['onUpdate']>(async () => {});
+    const { container } = render(<NotesEditor note={note} onUpdate={onUpdate} />);
+    const input = container.querySelector<HTMLInputElement>('input[type=file]')!;
+    const openPicker = vi.spyOn(input, 'click');
+    fireEvent.click(screen.getByRole('button', { name: 'Insert image' }));
+    expect(openPicker).toHaveBeenCalledOnce();
+    fireEvent.change(input, { target: { files: [imageFile] } });
+
+    await waitFor(
+      () => {
+        expect(onUpdate).toHaveBeenCalledWith(
+          note.id,
+          undefined,
+          expect.stringContaining(`src="${uploadedImage.data.url}"`),
+        );
+      },
+      { timeout: 2000 },
+    );
+    expect(onUpdate.mock.lastCall?.[2]).toContain('data-attachment-id="42"');
+    expect(uploadNoteAttachment).toHaveBeenCalledWith(note.id, imageFile, expect.any(AbortSignal));
+  });
+
+  it('keeps the drop position when text changes during the upload', async () => {
+    const { container } = render(<NotesEditor note={note} onUpdate={async () => {}} />);
+    vi.spyOn(editorInstance.current!.view, 'posAtCoords').mockReturnValue({ pos: 5, inside: 0 });
+    fireEvent.drop(container.querySelector('.tiptap')!, { dataTransfer: { files: [imageFile] } });
+    act(() => {
+      editorInstance.current?.commands.insertContentAt(1, 'Before ');
+    });
+    await waitFor(() => {
+      expect(editorInstance.current?.getHTML()).toContain('<p>Before the <img');
+    });
+  });
+
+  it('cancels a clipboard upload on note switch and ignores a late response', async () => {
+    let finishUpload!: (response: typeof uploadedImage) => void;
+    uploadNoteAttachment.mockImplementation(() => {
+      return new Promise((resolve) => {
+        finishUpload = resolve;
+      });
+    });
+    const onUpdate = vi.fn(async () => {});
+    const { container, rerender } = render(<NotesEditor note={note} onUpdate={onUpdate} />);
+    fireEvent.paste(container.querySelector('.tiptap')!, { clipboardData: { files: [imageFile] } });
+    expect(screen.getByText('Uploading images…')).toBeDefined();
+    act(() => {
+      editorInstance.current?.commands.insertContentAt(1, 'Edited ');
+    });
+    const signal = uploadNoteAttachment.mock.lastCall?.[2];
+    rerender(
+      <NotesEditor note={{ ...note, id: 2, body: '<p>Another note</p>' }} onUpdate={onUpdate} />,
+    );
+    expect(signal.aborted).toBe(true);
+    expect(onUpdate).toHaveBeenCalledWith(note.id, undefined, expect.stringContaining('Edited '));
+    await act(async () => {
+      finishUpload(uploadedImage);
+    });
+    expect(editorInstance.current?.getHTML()).toBe('<p>Another note</p>');
+    expect(screen.queryByText('Uploading images…')).toBeNull();
+  });
+
+  it('autosaves the current body when image insertion is undone before leaving the note', async () => {
+    const onUpdate = vi.fn(async () => {});
+    const { container, unmount } = render(<NotesEditor note={note} onUpdate={onUpdate} />);
+    fireEvent.paste(container.querySelector('.tiptap')!, { clipboardData: { files: [imageFile] } });
+    await waitFor(() => {
+      expect(editorInstance.current?.getHTML()).toContain('data-attachment-id="42"');
+    });
+    act(() => {
+      editorInstance.current?.commands.undo();
+    });
+    unmount();
+    expect(onUpdate).toHaveBeenLastCalledWith(note.id, undefined, note.body);
+  });
+
+  it('shows the upload limit error without inserting an image', async () => {
+    uploadNoteAttachment.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 413, data: { detail: 'Attachment exceeds file size limit' } },
+    });
+    const { container } = render(<NotesEditor note={note} onUpdate={async () => {}} />);
+    fireEvent.paste(container.querySelector('.tiptap')!, { clipboardData: { files: [imageFile] } });
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'Attachment exceeds file size limit',
+    );
+    expect(editorInstance.current?.getHTML()).toBe(note.body);
   });
 
   it('pins the current note from the editor toolbar', () => {
@@ -257,5 +361,4 @@ describe('NotesEditor', () => {
     expect(fireEvent.keyDown(window, { key: 'ArrowLeft', altKey: true })).toBe(true);
     expect(notesContext.openPreviousNote).not.toHaveBeenCalled();
   });
-
 });
