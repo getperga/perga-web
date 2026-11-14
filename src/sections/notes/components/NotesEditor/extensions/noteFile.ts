@@ -1,10 +1,12 @@
 import { Node, mergeAttributes } from '@tiptap/core';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 import { getNoteAttachmentContent } from '@api/notes/notesAttachments.service';
+import { Icon } from '@common/components/Icon';
 
 const FILE_PATH = /\/notes\/([1-9]\d*)\/attachments\/([1-9]\d*)\/content\/$/;
 const DOWNLOAD_URL_LIFETIME_MS = 60_000;
-const FILE_EXTENSION = /\.([a-z0-9]+)$/i;
 
 export const NoteFile = Node.create({
   name: 'noteFile',
@@ -35,20 +37,21 @@ export const NoteFile = Node.create({
   },
 
   addNodeView() {
+    const fileIcon = renderToStaticMarkup(
+      createElement(Icon, { name: 'attachedFile', size: 16, className: 'note-file-icon' }),
+    );
+
     return ({ node }) => {
       const dom = document.createElement('button');
       dom.type = 'button';
       dom.contentEditable = 'false';
       dom.className = 'note-file-download';
       const filename = String(node.attrs.filename);
-      const icon = document.createElement('span');
-      icon.className = 'note-file-icon';
-      icon.setAttribute('aria-hidden', 'true');
-      icon.textContent = filename.match(FILE_EXTENSION)?.[1].toUpperCase() ?? 'FILE';
+      dom.insertAdjacentHTML('afterbegin', fileIcon);
       const label = document.createElement('span');
       label.className = 'note-file-label';
       label.textContent = filename;
-      dom.append(icon, label);
+      dom.append(label);
       const controller = new AbortController();
 
       const path = String(node.attrs.href).match(FILE_PATH);
