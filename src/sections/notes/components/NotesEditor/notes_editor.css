@@ -10,6 +10,13 @@
   outline: none;
 }
 
+.tiptap .note-file-download {
+  color: var(--text-link);
+  text-decoration: underline;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
 .tiptap .note-image {
   position: relative;
   display: inline-block;

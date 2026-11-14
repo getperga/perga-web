@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import type { NoteDTO } from '@api/notes';
 import { cleanEditorHTML } from '@common/utils/string_utils';
+import { NoteFile } from '@notes/components/NotesEditor/extensions/noteFile';
 import { NoteFind } from '@notes/components/NotesEditor/extensions/noteFind.ts';
 import { NoteImage } from '@notes/components/NotesEditor/extensions/noteImage';
 import {
@@ -17,10 +18,10 @@ import { NoteList } from '@notes/components/NotesEditor/extensions/noteList';
 import { NotesEditorFindBar } from '@notes/components/NotesEditor/NotesEditorFindBar/NotesEditorFindBar';
 import { NotesEditorMenuBar } from '@notes/components/NotesEditor/NotesEditorMenuBar/NotesEditorMenuBar';
 import {
-  isImageFile,
+  NOTE_ATTACHMENT_ACCEPT,
   NOTE_IMAGE_ACCEPT,
-  useNoteImageUpload,
-} from '@notes/components/NotesEditor/useNoteImageUpload';
+  useNoteAttachmentUpload,
+} from '@notes/components/NotesEditor/useNoteAttachmentUpload';
 import { useNotesDebounceUpdate } from '@notes/components/NotesEditor/useNotesDebounceUpdate';
 import { useNotesFind } from '@notes/components/NotesEditor/useNotesFind';
 import { useNotesEditorHotkeys } from '@notes/components/NotesEditor/useNotesEditorHotkeys';
@@ -52,6 +53,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
 
   const [title, setTitle] = useState(note?.title || '');
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const lastSyncedNoteIdRef = useRef<number | undefined>(undefined);
   const { debounceUpdate } = useNotesDebounceUpdate({
@@ -59,45 +61,49 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
     onUpdate,
   });
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        link: false,
-      }),
-      Placeholder.configure({
-        placeholder: 'Start writing...',
-      }),
-      NoteLink.configure({
-        openOnClick: false,
-        autolink: true,
-        defaultProtocol: 'https',
-      }),
-      TaskList,
-      TaskItem.configure({
-        nested: true,
-      }),
-      NoteFind,
-      NoteList,
-      NoteImage,
-    ],
-    content: note?.body || '',
-    onUpdate: () => {
-      handleBodyChange();
-    },
-    editorProps: {
-      handleClick: (_view, _pos, event) => openLinkOnModifierClick(event),
-      attributes: {
-        class: `flex-1 w-full bg-transparent border-none focus:outline-none focus:ring-0 text-text-main resize-none placeholder:text-text-main/30 leading-relaxed overflow-y-auto min-h-[200px] ${
-          isInTrash ? 'opacity-50' : ''
-        }`,
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit.configure({
+          link: false,
+        }),
+        Placeholder.configure({
+          placeholder: 'Start writing...',
+        }),
+        NoteLink.configure({
+          openOnClick: false,
+          autolink: true,
+          defaultProtocol: 'https',
+        }),
+        TaskList,
+        TaskItem.configure({
+          nested: true,
+        }),
+        NoteFind,
+        NoteList,
+        NoteImage,
+        NoteFile,
+      ],
+      content: note?.body || '',
+      onUpdate: () => {
+        handleBodyChange();
       },
+      editorProps: {
+        handleClick: (_view, _pos, event) => openLinkOnModifierClick(event),
+        attributes: {
+          class: `flex-1 w-full bg-transparent border-none focus:outline-none focus:ring-0 text-text-main resize-none placeholder:text-text-main/30 leading-relaxed overflow-y-auto min-h-[200px] ${
+            isInTrash ? 'opacity-50' : ''
+          }`,
+        },
+      },
+      editable: !isInTrash,
     },
-    editable: !isInTrash,
-  }, [noteId]);
+    [noteId],
+  );
 
   const noteTitle = note?.title;
   const noteBody = note?.body;
-  const { uploadImages, isUploading, uploadError } = useNoteImageUpload(
+  const { uploadAttachments, isUploading, uploadError } = useNoteAttachmentUpload(
     editor,
     isInTrash ? undefined : noteId,
   );
@@ -170,22 +176,28 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
     debounceUpdate(newTitle, undefined);
   };
 
-  const handleImageFiles = (files: File[], position?: number) => {
+  const handleAttachmentFiles = (files: File[], position?: number) => {
     if (lastSyncedNoteIdRef.current === noteId) {
-      void uploadImages(files, position);
+      void uploadAttachments(files, position);
     }
   };
 
-  const handleImagePaste = (event: React.ClipboardEvent) => {
-    const files = Array.from(event.clipboardData.files).filter(isImageFile);
+  const handleAttachmentSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.currentTarget.files ?? []);
+    event.currentTarget.value = '';
+    handleAttachmentFiles(files);
+  };
+
+  const handleAttachmentPaste = (event: React.ClipboardEvent) => {
+    const files = Array.from(event.clipboardData.files);
     if (files.length) {
       event.preventDefault();
       event.stopPropagation();
-      handleImageFiles(files);
+      handleAttachmentFiles(files);
     }
   };
 
-  const handleImageDrop = (event: React.DragEvent) => {
+  const handleAttachmentDrop = (event: React.DragEvent) => {
     const files = Array.from(event.dataTransfer.files);
     if (files.length) {
       event.preventDefault();
@@ -194,7 +206,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
         left: event.clientX,
         top: event.clientY,
       });
-      handleImageFiles(files, position?.pos);
+      handleAttachmentFiles(files, position?.pos);
     }
   };
 
@@ -270,26 +282,36 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
         onFindClick={toggleFindBar}
         isPinned={note.is_pinned}
         isInTrash={isInTrash}
-        onPinClick={isInTrash ? undefined : () => void handleSetNotePinned(note.id, !note.is_pinned)}
-        onImageClick={isInTrash ? undefined : () => imageInputRef.current?.click()}
-        isUploadingImage={isUploading}
+        onPinClick={
+          isInTrash ? undefined : () => void handleSetNotePinned(note.id, !note.is_pinned)
+        }
+        onAttachFileClick={isInTrash ? undefined : () => attachmentInputRef.current?.click()}
+        onInsertImageClick={isInTrash ? undefined : () => imageInputRef.current?.click()}
+        isUploadingAttachment={isUploading}
       />
       <input
-        key={noteId}
+        key={`image-${noteId}`}
         ref={imageInputRef}
         type="file"
+        aria-label="Image picker"
         accept={NOTE_IMAGE_ACCEPT}
         multiple
         hidden
-        onChange={(event) => {
-          const files = Array.from(event.currentTarget.files ?? []);
-          event.currentTarget.value = '';
-          handleImageFiles(files);
-        }}
+        onChange={handleAttachmentSelection}
+      />
+      <input
+        key={`file-${noteId}`}
+        ref={attachmentInputRef}
+        type="file"
+        aria-label="Attachment picker"
+        accept={NOTE_ATTACHMENT_ACCEPT}
+        multiple
+        hidden
+        onChange={handleAttachmentSelection}
       />
       {isUploading && (
         <div role="status" className="text-sm text-text-muted">
-          Uploading images…
+          Uploading attachments…
         </div>
       )}
       {uploadError && (
@@ -311,8 +333,8 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({ note, onUpdate }) => {
       )}
       <EditorContent
         editor={editor}
-        onPasteCapture={handleImagePaste}
-        onDropCapture={handleImageDrop}
+        onPasteCapture={handleAttachmentPaste}
+        onDropCapture={handleAttachmentDrop}
         className="flex-1 overflow-hidden flex flex-col"
       />
     </div>

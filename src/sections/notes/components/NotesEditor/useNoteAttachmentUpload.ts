@@ -5,16 +5,12 @@ import type { Editor } from '@tiptap/react';
 
 import { uploadNoteAttachment } from '@api/notes';
 import { NoteImage } from './extensions/noteImage';
+import { NoteFile } from './extensions/noteFile';
 
-export const NOTE_IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp';
-const IMAGE_FILE_EXTENSION = /\.(png|jpe?g|webp)$/i;
-const UPLOAD_FAILED_MESSAGE = 'Unable to upload image';
-const INSERT_FAILED_MESSAGE = 'Unable to insert image here';
-const UNSUPPORTED_IMAGE_MESSAGE = 'Choose a PNG, JPEG or WebP image';
-
-export const isImageFile = (file: File) => {
-  return file.type.startsWith('image/') || IMAGE_FILE_EXTENSION.test(file.name);
-};
+export const NOTE_IMAGE_ACCEPT = '.png,.jpg,.jpeg,.webp';
+export const NOTE_ATTACHMENT_ACCEPT = '.pdf,.txt,.md,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip';
+const UPLOAD_FAILED_MESSAGE = 'Unable to upload attachment';
+const INSERT_FAILED_MESSAGE = 'Unable to insert attachment here';
 
 const getUploadError = (error: unknown) => {
   if (isAxiosError<{ detail?: unknown }>(error)) {
@@ -23,13 +19,13 @@ const getUploadError = (error: unknown) => {
       return detail;
     }
     if (error.response?.status === 413) {
-      return 'Image exceeds the upload limit';
+      return 'Attachment exceeds the upload limit';
     }
   }
   return UPLOAD_FAILED_MESSAGE;
 };
 
-export const useNoteImageUpload = (editor: Editor | null, noteId: number | undefined) => {
+export const useNoteAttachmentUpload = (editor: Editor | null, noteId: number | undefined) => {
   const activeUpload = useRef<AbortController | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -43,7 +39,7 @@ export const useNoteImageUpload = (editor: Editor | null, noteId: number | undef
     };
   }, [editor, noteId]);
 
-  const uploadImages = async (files: File[], insertAt?: number) => {
+  const uploadAttachments = async (files: File[], insertAt?: number) => {
     if (
       !editor ||
       editor.isDestroyed ||
@@ -72,21 +68,32 @@ export const useNoteImageUpload = (editor: Editor | null, noteId: number | undef
           break;
         }
 
-        if (!isImageFile(file)) {
-          setUploadError(`${file.name}: ${UNSUPPORTED_IMAGE_MESSAGE}`);
-          continue;
-        }
-
         try {
           const { data } = await uploadNoteAttachment(noteId, file, controller.signal);
           if (controller.signal.aborted || editor.isDestroyed || !editor.isEditable) {
             break;
           }
 
-          const inserted = editor.commands.insertContentAt(position, {
-            type: NoteImage.name,
-            attrs: { src: data.url, 'data-attachment-id': data.id, alt: data.original_filename },
-          });
+          const content =
+            data.attachment_type === 'file'
+              ? {
+                  type: NoteFile.name,
+                  attrs: {
+                    href: data.url,
+                    'data-attachment-id': data.id,
+                    filename: data.original_filename,
+                  },
+                }
+              : {
+                  type: NoteImage.name,
+                  attrs: {
+                    src: data.url,
+                    'data-attachment-id': data.id,
+                    alt: data.original_filename,
+                  },
+                };
+
+          const inserted = editor.commands.insertContentAt(position, content);
           if (!inserted) {
             setUploadError(`${file.name}: ${INSERT_FAILED_MESSAGE}`);
           }
@@ -105,5 +112,5 @@ export const useNoteImageUpload = (editor: Editor | null, noteId: number | undef
     }
   };
 
-  return { uploadImages, isUploading, uploadError };
+  return { uploadAttachments, isUploading, uploadError };
 };

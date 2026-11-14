@@ -9,8 +9,9 @@ import { saveNoteFindQueryToStorage } from '@notes/utils';
 
 const editorInstance = vi.hoisted(() => ({ current: null as Editor | null }));
 const uploadNoteAttachment = vi.hoisted(() => vi.fn());
+const getNoteAttachmentContent = vi.hoisted(() => vi.fn());
 vi.mock('@api/notes/notesAttachments.service', () => {
-  return { uploadNoteAttachment, getNoteAttachmentContent: vi.fn(() => Promise.reject()) };
+  return { uploadNoteAttachment, getNoteAttachmentContent };
 });
 
 vi.mock('@/config', () => {
@@ -103,6 +104,7 @@ describe('NotesEditor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     uploadNoteAttachment.mockReset().mockResolvedValue(uploadedImage);
+    getNoteAttachmentContent.mockReset().mockRejectedValue(new Error('Unavailable'));
     notesContext.canOpenPreviousNote = false;
     notesContext.canOpenNextNote = false;
   });
@@ -110,10 +112,11 @@ describe('NotesEditor', () => {
   it('inserts a selected file and autosaves the attachment URL and ID', async () => {
     const onUpdate = vi.fn<ComponentProps<typeof NotesEditor>['onUpdate']>(async () => {});
     const { container } = render(<NotesEditor note={note} onUpdate={onUpdate} />);
-    const input = container.querySelector<HTMLInputElement>('input[type=file]')!;
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Image picker"]')!;
     const openPicker = vi.spyOn(input, 'click');
     fireEvent.click(screen.getByRole('button', { name: 'Insert image' }));
     expect(openPicker).toHaveBeenCalledOnce();
+    expect(input.accept).toBe('.png,.jpg,.jpeg,.webp');
     fireEvent.change(input, { target: { files: [imageFile] } });
 
     await waitFor(
@@ -142,6 +145,43 @@ describe('NotesEditor', () => {
     });
   });
 
+  it('restores a file link in the editor and downloads the original with authentication', async () => {
+    const file = new File(['contents'], 'report.pdf', { type: 'application/pdf' });
+    const href = uploadedImage.data.url;
+    uploadNoteAttachment.mockResolvedValue({
+      data: { ...uploadedImage.data, attachment_type: 'file', original_filename: file.name },
+    });
+    const { container } = render(<NotesEditor note={note} onUpdate={async () => {}} />);
+    const picker = container.querySelector<HTMLInputElement>(
+      'input[aria-label="Attachment picker"]',
+    )!;
+    const openPicker = vi.spyOn(picker, 'click');
+    fireEvent.click(screen.getByRole('button', { name: 'Attach file' }));
+    expect(openPicker).toHaveBeenCalledOnce();
+    expect(picker.accept.split(',')).toContain('.pdf');
+    expect(picker.accept.split(',')).not.toContain('.png');
+    fireEvent.change(picker, { target: { files: [file] } });
+    const button = await screen.findByRole('button', { name: file.name });
+    const savedBody = editorInstance.current!.getHTML();
+    expect(savedBody).toContain(`href="${href}"`);
+    expect(savedBody).toContain('data-attachment-id="42"');
+    expect(savedBody).not.toContain('<img');
+    act(() => {
+      editorInstance.current!.commands.setContent(savedBody);
+    });
+    expect(button.textContent).toBe(file.name);
+    fireEvent.click(screen.getByRole('button', { name: file.name }));
+    expect(getNoteAttachmentContent).toHaveBeenCalledWith(
+      '1',
+      '42',
+      expect.any(AbortSignal),
+      false,
+    );
+    expect(
+      await screen.findByRole('button', { name: 'Download failed: report.pdf' }),
+    ).toBeDefined();
+  });
+
   it('cancels a clipboard upload on note switch and ignores a late response', async () => {
     let finishUpload!: (response: typeof uploadedImage) => void;
     uploadNoteAttachment.mockImplementation(() => {
@@ -152,7 +192,7 @@ describe('NotesEditor', () => {
     const onUpdate = vi.fn(async () => {});
     const { container, rerender } = render(<NotesEditor note={note} onUpdate={onUpdate} />);
     fireEvent.paste(container.querySelector('.tiptap')!, { clipboardData: { files: [imageFile] } });
-    expect(screen.getByText('Uploading images…')).toBeDefined();
+    expect(screen.getByText('Uploading attachments…')).toBeDefined();
     act(() => {
       editorInstance.current?.commands.insertContentAt(1, 'Edited ');
     });
@@ -166,7 +206,7 @@ describe('NotesEditor', () => {
       finishUpload(uploadedImage);
     });
     expect(editorInstance.current?.getHTML()).toBe('<p>Another note</p>');
-    expect(screen.queryByText('Uploading images…')).toBeNull();
+    expect(screen.queryByText('Uploading attachments…')).toBeNull();
   });
 
   it('autosaves the current body when image insertion is undone before leaving the note', async () => {
@@ -402,5 +442,4 @@ describe('NotesEditor', () => {
     expect(editorInstance.current?.commands.undo()).toBe(false);
     expect(editorInstance.current?.getHTML()).toBe(nextNote.body);
   });
-
 });
