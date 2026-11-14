@@ -4,6 +4,7 @@ import { getNoteAttachmentContent } from '@api/notes/notesAttachments.service';
 
 const FILE_PATH = /\/notes\/([1-9]\d*)\/attachments\/([1-9]\d*)\/content\/$/;
 const DOWNLOAD_URL_LIFETIME_MS = 60_000;
+const FILE_EXTENSION = /\.([a-z0-9]+)$/i;
 
 export const NoteFile = Node.create({
   name: 'noteFile',
@@ -39,7 +40,15 @@ export const NoteFile = Node.create({
       dom.type = 'button';
       dom.contentEditable = 'false';
       dom.className = 'note-file-download';
-      dom.textContent = node.attrs.filename;
+      const filename = String(node.attrs.filename);
+      const icon = document.createElement('span');
+      icon.className = 'note-file-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = filename.match(FILE_EXTENSION)?.[1].toUpperCase() ?? 'FILE';
+      const label = document.createElement('span');
+      label.className = 'note-file-label';
+      label.textContent = filename;
+      dom.append(icon, label);
       const controller = new AbortController();
 
       const path = String(node.attrs.href).match(FILE_PATH);
@@ -53,10 +62,15 @@ export const NoteFile = Node.create({
         }
 
         dom.disabled = true;
-        dom.textContent = 'Downloading…';
+        label.textContent = 'Downloading…';
         try {
           // build the authenticated URL from IDs, never from the note HTML
-          const { data } = await getNoteAttachmentContent(path[1], path[2], controller.signal, false);
+          const { data } = await getNoteAttachmentContent(
+            path[1],
+            path[2],
+            controller.signal,
+            false,
+          );
           if (controller.signal.aborted) {
             return;
           }
@@ -64,15 +78,15 @@ export const NoteFile = Node.create({
           const url = URL.createObjectURL(data);
           const link = document.createElement('a');
           link.href = url;
-          link.download = node.attrs.filename;
+          link.download = filename;
           link.click();
           window.setTimeout(() => {
             URL.revokeObjectURL(url);
           }, DOWNLOAD_URL_LIFETIME_MS);
-          dom.textContent = node.attrs.filename;
+          label.textContent = filename;
         } catch {
           if (!controller.signal.aborted) {
-            dom.textContent = `Download failed: ${node.attrs.filename}`;
+            label.textContent = `Download failed: ${filename}`;
           }
         } finally {
           dom.disabled = false;

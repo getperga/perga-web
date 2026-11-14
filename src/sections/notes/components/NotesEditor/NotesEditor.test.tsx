@@ -162,6 +162,7 @@ describe('NotesEditor', () => {
     expect(picker.accept.split(',')).not.toContain('.png');
     fireEvent.change(picker, { target: { files: [file] } });
     const button = await screen.findByRole('button', { name: file.name });
+    expect(button.querySelector('.note-file-icon')?.textContent).toBe('PDF');
     const savedBody = editorInstance.current!.getHTML();
     expect(savedBody).toContain(`href="${href}"`);
     expect(savedBody).toContain('data-attachment-id="42"');
@@ -169,7 +170,9 @@ describe('NotesEditor', () => {
     act(() => {
       editorInstance.current!.commands.setContent(savedBody);
     });
-    expect(button.textContent).toBe(file.name);
+    expect(
+      screen.getByRole('button', { name: file.name }).querySelector('.note-file-icon')?.textContent,
+    ).toBe('PDF');
     fireEvent.click(screen.getByRole('button', { name: file.name }));
     expect(getNoteAttachmentContent).toHaveBeenCalledWith(
       '1',
@@ -177,9 +180,8 @@ describe('NotesEditor', () => {
       expect.any(AbortSignal),
       false,
     );
-    expect(
-      await screen.findByRole('button', { name: 'Download failed: report.pdf' }),
-    ).toBeDefined();
+    const failed = await screen.findByRole('button', { name: 'Download failed: report.pdf' });
+    expect(failed.querySelector('.note-file-icon')?.textContent).toBe('PDF');
   });
 
   it('cancels a clipboard upload on note switch and ignores a late response', async () => {
