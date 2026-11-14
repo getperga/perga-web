@@ -30,6 +30,35 @@
   outline: 2px solid var(--text-link);
 }
 
+.tiptap .note-image-open-original {
+  position: absolute;
+  inset-inline-end: 4px;
+  top: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--bg-main);
+  color: var(--text-link);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tiptap .note-image:hover .note-image-open-original,
+.tiptap .note-image.ProseMirror-selectednode .note-image-open-original,
+.tiptap .note-image-open-original:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .tiptap .note-image-open-original {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 .tiptap .note-image-resize {
   position: absolute;
   inset-inline-end: 3px;

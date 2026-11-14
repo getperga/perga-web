@@ -7,6 +7,9 @@ const ATTACHMENT_PATH_PATTERN = /\/notes\/([1-9]\d*)\/attachments\/([1-9]\d*)\/c
 const IMAGE_ATTRIBUTES = ['src', 'alt', 'title', 'width', 'height', 'data-attachment-id'];
 const IMAGE_LOADING_MESSAGE = 'Loading image…';
 const IMAGE_ERROR_MESSAGE = 'Unable to load image';
+const OPEN_ORIGINAL_LABEL = 'Open original';
+const OPEN_ORIGINAL_ERROR = 'Unable to open original image';
+const ORIGINAL_TAB_CHECK_INTERVAL_MS = 1000;
 const MIN_IMAGE_WIDTH = 24;
 const IMAGE_RESIZE_STEP = 10;
 const RESIZE_IMAGE_LABEL = 'Resize image (Left and Right arrows)';
@@ -159,16 +162,23 @@ export const NoteImage = Node.create({
       };
 
       const controller = new AbortController();
+      const openOriginal = document.createElement('button');
+      openOriginal.type = 'button';
+      openOriginal.className = 'note-image-open-original';
+      openOriginal.textContent = OPEN_ORIGINAL_LABEL;
+      openOriginal.hidden = true;
       let objectUrl: string | undefined;
       const showError = () => {
         image.hidden = true;
         resizeHandle.hidden = true;
+        openOriginal.hidden = true;
         status.hidden = false;
         status.textContent = IMAGE_ERROR_MESSAGE;
       };
       image.onload = () => {
         status.hidden = true;
         resizeHandle.hidden = false;
+        openOriginal.hidden = false;
       };
       image.onerror = showError;
 
@@ -180,6 +190,53 @@ export const NoteImage = Node.create({
         if (!attachmentPath || attachmentPath[2] !== String(attachmentId)) {
           showError();
         } else {
+          dom.append(openOriginal);
+          openOriginal.onclick = () => {
+            // open during the click so the browser permits the new tab
+            const tab = window.open('', '_blank');
+            if (!tab) {
+              status.textContent = 'Allow pop-ups to open the original image';
+              status.hidden = false;
+              return;
+            }
+            tab.opener = null;
+            tab.document.title = OPEN_ORIGINAL_LABEL;
+            tab.document.body.textContent = IMAGE_LOADING_MESSAGE;
+            openOriginal.disabled = true;
+            const originalRequest = new AbortController();
+            let originalUrl: string | undefined;
+            const closeCheck = window.setInterval(() => {
+              if (tab.closed) {
+                window.clearInterval(closeCheck);
+                originalRequest.abort();
+                if (originalUrl) {
+                  URL.revokeObjectURL(originalUrl);
+                }
+              }
+            }, ORIGINAL_TAB_CHECK_INTERVAL_MS);
+
+            void getNoteAttachmentContent(
+              attachmentPath[1],
+              attachmentPath[2],
+              originalRequest.signal,
+              false,
+            )
+              .then(({ data }) => {
+                if (!tab.closed) {
+                  originalUrl = URL.createObjectURL(data);
+                  tab.location.replace(originalUrl);
+                }
+              })
+              .catch(() => {
+                if (!tab.closed) {
+                  tab.document.body.textContent = OPEN_ORIGINAL_ERROR;
+                }
+              })
+              .finally(() => {
+                openOriginal.disabled = false;
+              });
+          };
+
           // construct the request from IDs so document URLs cannot receive the bearer token
           void getNoteAttachmentContent(attachmentPath[1], attachmentPath[2], controller.signal)
             .then(({ data }) => {
@@ -218,7 +275,7 @@ export const NoteImage = Node.create({
           return true;
         },
         stopEvent: (event) => {
-          return event.target === resizeHandle;
+          return event.target === resizeHandle || event.target === openOriginal;
         },
         ignoreMutation: () => {
           return true;

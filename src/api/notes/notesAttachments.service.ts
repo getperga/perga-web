@@ -18,9 +18,11 @@ export const getNoteAttachmentContent = (
   noteId: string,
   attachmentId: string,
   signal: AbortSignal,
+  preview = true,
 ) => {
   return axios.get<Blob>(`${NOTES_API_URL}/${noteId}/attachments/${attachmentId}/content/`, {
     responseType: 'blob',
+    params: preview ? { preview: true } : undefined,
     signal,
   });
 };
