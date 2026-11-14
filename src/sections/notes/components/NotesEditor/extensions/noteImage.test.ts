@@ -69,6 +69,46 @@ describe('NoteImage', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith(BLOB_URL);
     expect(editor.view.dom.querySelector<HTMLImageElement>('.note-image img')).toBeNull();
   });
+  it('opens the original in a separate tab and releases its URL after that tab closes', async () => {
+    const editor = createEditor();
+    const image = editor.view.dom.querySelector<HTMLImageElement>('.note-image img')!;
+    const button = editor.view.dom.querySelector<HTMLButtonElement>('.note-image-open-original')!;
+    const tab = {
+      closed: false,
+      opener: window,
+      document: document.implementation.createHTMLDocument(),
+      location: { replace: vi.fn() },
+    };
+    const open = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
+    try {
+      expect(button.hidden).toBe(true);
+      image.dispatchEvent(new Event('load'));
+      expect(button.hidden).toBe(false);
+      button.click();
+      expect(open).toHaveBeenCalledWith('', '_blank');
+      expect(tab.opener).toBeNull();
+      expect(getNoteAttachmentContent).toHaveBeenCalledWith(
+        '42',
+        '123',
+        expect.any(AbortSignal),
+        false,
+      );
+      await waitFor(() => {
+        expect(tab.location.replace).toHaveBeenCalledWith(BLOB_URL);
+      });
+      tab.closed = true;
+      await waitFor(
+        () => {
+          expect(URL.revokeObjectURL).toHaveBeenCalledWith(BLOB_URL);
+        },
+        { timeout: 2000 },
+      );
+      expect(editor.getHTML()).not.toContain('Open original');
+    } finally {
+      tab.closed = true;
+      open.mockRestore();
+    }
+  });
   it('does not trigger autosave on download and keeps canonical URLs after text edits', async () => {
     const editor = createEditor();
     const onUpdate = vi.fn();

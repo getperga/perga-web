@@ -1,6 +1,7 @@
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
+import { TextSelection } from '@tiptap/pm/state';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NoteList } from './noteList';
 
@@ -138,8 +139,113 @@ describe('cutting complete list items', () => {
   });
 });
 
+describe('block movement outside lists', () => {
+  it('moves a paragraph past a heading and a list, keeping the cursor offset', () => {
+    const editor = createEditor(
+      '<h2>heading</h2><ul><li><p>item</p></li></ul><p>text</p><p>end</p>',
+    );
+    selectText(editor, 'text');
+    editor.commands.setTextSelection(editor.state.selection.from + 2);
+    move(editor, 'ArrowUp');
+    move(editor, 'ArrowUp');
+    expect(editor.getHTML()).toBe(
+      '<p>text</p><h2>heading</h2><ul><li><p>item</p></li></ul><p>end</p>',
+    );
+    expect(editor.state.selection.$from.parentOffset).toBe(2);
+    const before = editor.getJSON();
+    expect(move(editor, 'ArrowUp').defaultPrevented).toBe(true);
+    expect(editor.getJSON()).toEqual(before);
+  });
+
+  it('moves a backward selection across different blocks and restores it on undo', () => {
+    const editor = createEditor('<p>first</p><h2>heading</h2><p><strong>text</strong></p>');
+    selectText(editor, 'heading');
+    const head = editor.state.selection.from + 2;
+    selectText(editor, 'text');
+    const anchor = editor.state.selection.from + 2;
+    editor.view.dispatch(
+      editor.state.tr.setSelection(TextSelection.create(editor.state.doc, anchor, head)),
+    );
+    const before = editor.state.selection.toJSON();
+    move(editor, 'ArrowUp');
+    expect(editor.getHTML()).toBe('<h2>heading</h2><p><strong>text</strong></p><p>first</p>');
+    expect(editor.state.selection.anchor).toBe(anchor - 7);
+    expect(editor.state.selection.head).toBe(head - 7);
+    editor.commands.undo();
+    expect(editor.state.selection.toJSON()).toEqual(before);
+    expect(editor.getHTML()).toBe('<p>first</p><h2>heading</h2><p><strong>text</strong></p>');
+  });
+
+  it('keeps a moved horizontal rule selected', () => {
+    const editor = createEditor('<hr><p>text</p><p>end</p>');
+    editor.commands.setNodeSelection(0);
+    move(editor, 'ArrowDown');
+    expect(editor.state.doc.child(1).type.name).toBe('horizontalRule');
+    expect(editor.state.selection.toJSON()).toEqual({ type: 'node', anchor: 6 });
+  });
+});
+
+describe('Cmd+D block duplication', () => {
+  const duplicate = (editor: Editor) => {
+    const event = new KeyboardEvent('keydown', {
+      key: 'd',
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    editor.view.dom.dispatchEvent(event);
+    return event;
+  };
+
+  it('copies the current paragraph, moves the cursor, and supports undo', () => {
+    const original = '<p><strong>text</strong></p><p>after</p>';
+    const editor = createEditor(original);
+    editor.commands.setTextSelection(3);
+    expect(duplicate(editor).defaultPrevented).toBe(true);
+    expect(editor.getHTML()).toBe('<p><strong>text</strong></p>' + original);
+    expect(editor.state.selection.anchor).toBe(9);
+    editor.commands.undo();
+    expect(editor.getHTML()).toBe(original);
+    expect(editor.state.selection.anchor).toBe(3);
+  });
+
+  it('copies all blocks covered by a backward selection and selects the copy', () => {
+    const editor = createEditor('<h2>one</h2><p>two</p><p>after</p>');
+    editor.view.dispatch(
+      editor.state.tr.setSelection(TextSelection.create(editor.state.doc, 8, 2)),
+    );
+    duplicate(editor);
+    expect(editor.getHTML()).toBe('<h2>one</h2><p>two</p><h2>one</h2><p>two</p><p>after</p>');
+    expect(editor.state.selection.anchor).toBe(18);
+    expect(editor.state.selection.head).toBe(12);
+  });
+
+  it('copies a checked task and its nested list as one item', () => {
+    const editor = createEditor(
+      '<ul data-type="taskList"><li data-type="taskItem" data-checked="true"><p>parent</p><ul data-type="taskList"><li data-type="taskItem"><p>child</p></li></ul></li></ul><p>after</p>',
+    );
+    selectText(editor, 'parent');
+    duplicate(editor);
+    const list = editor.state.doc.firstChild!;
+    expect(list.childCount).toBe(2);
+    expect(list.child(1).eq(list.child(0))).toBe(true);
+    expect(editor.state.selection.$from.index(1)).toBe(1);
+  });
+
+  it('selects a copied node and skips duplication in read-only mode', () => {
+    const editor = createEditor('<hr><p>after</p>');
+    editor.commands.setNodeSelection(0);
+    duplicate(editor);
+    expect(editor.getHTML()).toBe('<hr><hr><p>after</p>');
+    expect(editor.state.selection.toJSON()).toEqual({ type: 'node', anchor: 1 });
+    editor.setEditable(false);
+    expect(duplicate(editor).defaultPrevented).toBe(false);
+    expect(editor.getHTML()).toBe('<hr><hr><p>after</p>');
+  });
+});
+
 describe('list editing edge cases', () => {
-  it('does not move items in a read-only editor or paragraphs outside lists', () => {
+  it('does not move list items in a read-only editor', () => {
     const editor = createEditor('<ul><li><p>one</p></li><li><p>two</p></li></ul>');
     selectText(editor, 'two');
     editor.setEditable(false);
@@ -147,9 +253,6 @@ describe('list editing edge cases', () => {
     move(editor, 'ArrowRight');
     move(editor, 'ArrowLeft');
     expect(editor.state.doc.textContent).toBe('onetwo');
-    const paragraph = createEditor('<p>plain text</p>');
-    selectText(paragraph, 'plain text');
-    expect(move(paragraph, 'ArrowDown').defaultPrevented).toBe(false);
   });
 
   it('cuts multiple complete items together', () => {

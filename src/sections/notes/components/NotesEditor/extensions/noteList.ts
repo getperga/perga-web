@@ -1,8 +1,8 @@
 import { Extension } from '@tiptap/core';
 import { closeHistory } from '@tiptap/pm/history';
 import { Fragment, Slice } from '@tiptap/pm/model';
-import { Plugin, Selection, TextSelection } from '@tiptap/pm/state';
-import type { Command, Transaction } from '@tiptap/pm/state';
+import { NodeSelection, Plugin, Selection, TextSelection } from '@tiptap/pm/state';
+import type { Command, EditorState, Transaction } from '@tiptap/pm/state';
 
 const listNames = new Set(['bulletList', 'orderedList', 'taskList']);
 
@@ -46,49 +46,109 @@ const joinAdjacentLists = (tr: Transaction) => {
   return tr;
 };
 
-const moveListItems = (direction: -1 | 1): Command => {
+const getBlockEdit = (state: EditorState) => {
+  const joined = joinAdjacentLists(closeHistory(state.tr));
+  const listRange = joined.selection.$from.blockRange(joined.selection.$to, (node) => {
+    return listNames.has(node.type.name);
+  });
+  if (listRange) {
+    return { tr: joined, range: listRange };
+  }
+
+  const tr = closeHistory(state.tr);
+  const { $from, $to } = tr.selection;
+  // treat a single-block wrapper as a unit
+  const range = $from.blockRange($to, (node) => {
+    return node === tr.doc || node.childCount > 1;
+  });
+  return { tr, range };
+};
+
+const shiftBlockSelection = (
+  tr: Transaction,
+  state: EditorState,
+  selection: Selection,
+  start: number,
+  offset: number,
+) => {
+  if (selection instanceof TextSelection) {
+    tr.setSelection(
+      TextSelection.create(tr.doc, selection.anchor + offset, selection.head + offset),
+    );
+    if (selection.empty) {
+      tr.setStoredMarks(state.storedMarks);
+    }
+  } else if (selection instanceof NodeSelection) {
+    tr.setSelection(NodeSelection.create(tr.doc, selection.anchor + offset));
+  } else {
+    tr.setSelection(Selection.near(tr.doc.resolve(start + offset)));
+  }
+};
+
+const moveBlocks = (direction: -1 | 1): Command => {
   return (state, dispatch) => {
-    const tr = joinAdjacentLists(closeHistory(state.tr));
-    const { selection } = tr;
-    const range = selection.$from.blockRange(selection.$to, (node) => {
-      return listNames.has(node.type.name);
-    });
-    if (!range) {
+    const { tr, range } = getBlockEdit(state);
+    if (!range || range.startIndex === range.endIndex) {
       return false;
     }
 
+    const { selection } = tr;
     const { parent, startIndex, endIndex, start, end } = range;
-    // Consume the shortcut at list boundaries without moving outside the list
     if (direction === -1 ? startIndex === 0 : endIndex === parent.childCount) {
       if (dispatch && tr.docChanged) {
         dispatch(tr);
       }
       return true;
     }
+    const movingUp = direction === -1;
+    const neighbor = parent.child(movingUp ? startIndex - 1 : endIndex);
+    const blocks = tr.doc.slice(start, end).content;
+    const from = movingUp ? start - neighbor.nodeSize : start;
+    const to = movingUp ? end : end + neighbor.nodeSize;
+    const content =
+      direction === -1
+        ? blocks.append(Fragment.from(neighbor))
+        : Fragment.from(neighbor).append(blocks);
+    if (
+      !parent.canReplace(
+        movingUp ? startIndex - 1 : startIndex,
+        movingUp ? endIndex : endIndex + 1,
+        content,
+      )
+    ) {
+      return true;
+    }
     if (!dispatch) {
       return true;
     }
 
-    const neighbor = parent.child(direction === -1 ? startIndex - 1 : endIndex);
-    const items = tr.doc.slice(start, end).content;
-    const from = direction === -1 ? start - neighbor.nodeSize : start;
-    const to = direction === -1 ? end : end + neighbor.nodeSize;
-    const content = direction === -1
-      ? items.append(Fragment.from(neighbor))
-      : Fragment.from(neighbor).append(items);
     const offset = direction * neighbor.nodeSize;
     tr.replaceWith(from, to, content);
-    if (selection instanceof TextSelection) {
-      tr.setSelection(
-        TextSelection.create(tr.doc, selection.anchor + offset, selection.head + offset),
-      );
-    } else {
-      tr.setSelection(Selection.near(tr.doc.resolve(start + offset)));
-    }
+    shiftBlockSelection(tr, state, selection, start, offset);
     dispatch(tr.scrollIntoView());
 
     return true;
   };
+};
+
+const duplicateBlocks: Command = (state, dispatch) => {
+  const { tr, range } = getBlockEdit(state);
+  if (!range || range.startIndex === range.endIndex) {
+    return false;
+  }
+
+  const { selection } = tr;
+  const { parent, start, end, endIndex } = range;
+  const blocks = tr.doc.slice(start, end).content;
+  if (!parent.canReplace(endIndex, endIndex, blocks)) {
+    return false;
+  }
+  if (dispatch) {
+    tr.insert(end, blocks);
+    shiftBlockSelection(tr, state, selection, start, blocks.size);
+    dispatch(tr.scrollIntoView());
+  }
+  return true;
 };
 
 export const NoteList = Extension.create({
@@ -125,14 +185,19 @@ export const NoteList = Extension.create({
     };
 
     return {
+      'Meta-d': () => {
+        return (
+          this.editor.isEditable && duplicateBlocks(this.editor.state, this.editor.view.dispatch)
+        );
+      },
       'Alt-Shift-ArrowUp': () => {
         return (
-          this.editor.isEditable && moveListItems(-1)(this.editor.state, this.editor.view.dispatch)
+          this.editor.isEditable && moveBlocks(-1)(this.editor.state, this.editor.view.dispatch)
         );
       },
       'Alt-Shift-ArrowDown': () => {
         return (
-          this.editor.isEditable && moveListItems(1)(this.editor.state, this.editor.view.dispatch)
+          this.editor.isEditable && moveBlocks(1)(this.editor.state, this.editor.view.dispatch)
         );
       },
       'Alt-Shift-ArrowRight': () => {

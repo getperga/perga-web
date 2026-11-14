@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.7] - 2026-11-14
+
+### Added
+
+- notes file attachments
+- notes images preview
+- notes editor line hotkeys
+
 ## [1.2.6] - 2026-11-11
 
 ### Added

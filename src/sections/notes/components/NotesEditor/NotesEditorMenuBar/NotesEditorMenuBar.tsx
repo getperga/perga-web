@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Editor } from '@tiptap/react';
-import { ImagePlus, Pin } from 'lucide-react';
+import { ImagePlus, Paperclip, Pin } from 'lucide-react';
 
 import { Icon } from '@common/components';
 import { editorIcons } from '../notes_editor_icons';
@@ -12,8 +12,9 @@ interface MenuBarProps {
   isPinned?: boolean;
   isInTrash?: boolean;
   onPinClick?: () => void;
-  onImageClick?: () => void;
-  isUploadingImage?: boolean;
+  onAttachFileClick?: () => void;
+  onInsertImageClick?: () => void;
+  isUploadingAttachment?: boolean;
 }
 
 export const NotesEditorMenuBar: React.FC<MenuBarProps> = ({
@@ -22,8 +23,9 @@ export const NotesEditorMenuBar: React.FC<MenuBarProps> = ({
   isPinned = false,
   isInTrash = false,
   onPinClick,
-  onImageClick,
-  isUploadingImage = false,
+  onAttachFileClick,
+  onInsertImageClick,
+  isUploadingAttachment = false,
 }) => {
   if (!editor) {
     return null;
@@ -173,16 +175,29 @@ export const NotesEditorMenuBar: React.FC<MenuBarProps> = ({
         </button>
       ))}
 
-      {onImageClick && (
+      {onInsertImageClick && (
         <button
           type="button"
-          onClick={onImageClick}
-          disabled={isUploadingImage}
+          onClick={onInsertImageClick}
+          disabled={isUploadingAttachment}
           title="Insert image"
           aria-label="Insert image"
           className="rounded p-1.5 text-text-muted hover:bg-bg-hover transition-colors disabled:opacity-40"
         >
           <ImagePlus size={18} />
+        </button>
+      )}
+
+      {onAttachFileClick && (
+        <button
+          type="button"
+          onClick={onAttachFileClick}
+          disabled={isUploadingAttachment}
+          title="Attach file"
+          aria-label="Attach file"
+          className="rounded p-1.5 text-text-muted hover:bg-bg-hover transition-colors disabled:opacity-40"
+        >
+          <Paperclip size={18} />
         </button>
       )}
 

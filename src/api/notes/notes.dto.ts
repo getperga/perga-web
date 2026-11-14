@@ -83,11 +83,12 @@ export interface NoteSearchResultDTO extends NoteMetaDTO {
 export interface NotesAttachmentDTO {
   id: number;
   note_id: number;
-  original_filename: string;
+  attachment_type: 'image' | 'file';
   content_type: string;
+  original_filename: string;
   size_bytes: number;
-  width: number;
-  height: number;
+  width: number | null;
+  height: number | null;
   created_dt: string;
   url: string;
 }
