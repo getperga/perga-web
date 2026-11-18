@@ -1,12 +1,12 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:24.22.3-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files
 COPY package.json .
 COPY package-lock.json .
-RUN npm install
+RUN npm ci
 
 # Copy configs
 COPY tsconfig.json .
@@ -30,7 +30,7 @@ RUN mkdir -p public
 RUN npm run build
 
 ## Runner stage
-FROM nginx:alpine AS runner
+FROM nginx:1.31.8-alpine3.24 AS runner
 
 # Install envsubst for runtime configuration generation
 RUN apk add --no-cache gettext
