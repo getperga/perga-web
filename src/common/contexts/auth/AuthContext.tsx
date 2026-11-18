@@ -12,12 +12,11 @@ import {
   signin,
   signup,
   googleSignin,
-  storeToken,
-  removeToken,
-  isAuthenticated,
   updateUser,
   getUser,
   updatePassword,
+  endBrowserSession,
+  restoreBrowserSession,
 } from '@api/auth';
 import { AuthContext } from './AuthContext.types';
 
@@ -46,12 +45,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const checkAuth = async () => {
       setIsLoading(true);
 
-      if (isAuthenticated()) {
+      if (await restoreBrowserSession()) {
         try {
           await handleFetchUser();
         } catch (error) {
           console.error('Failed to fetch user data:', error);
-          removeToken();
         }
       }
 
@@ -64,8 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const handleSignin = async (credentials: UserSigninDTO) => {
     setIsLoading(true);
     try {
-      const response = await signin(credentials);
-      storeToken(response.data);
+      await signin(credentials);
 
       await handleFetchUser();
     } finally {
@@ -76,8 +73,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const handleGoogleSignin = async (data: GoogleSigninDTO) => {
     setIsLoading(true);
     try {
-      const response = await googleSignin(data);
-      storeToken(response.data);
+      await googleSignin(data);
 
       await handleFetchUser();
     } finally {
@@ -102,7 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const handleLogout = () => {
-    removeToken();
+    void endBrowserSession();
     setUser(null);
   };
 
@@ -114,7 +110,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const handleUpdatePassword = async (data: UpdatePasswordDTO) => {
     await updatePassword(data);
-    // No need to refetch user as password change doesn't alter user profile fields
+    handleLogout();
   };
 
   const value = {
