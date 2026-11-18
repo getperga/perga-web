@@ -5,6 +5,7 @@ import { NotesEditor } from '@notes/components/NotesEditor/NotesEditor';
 import { NotesWorkspace } from '@notes/components/NotesWorkspace';
 import { PinnedNotesPanel } from '@notes/components/PinnedNotesPanel';
 import { useNotes } from '@notes/context';
+import { useNoteRoute } from '@notes/hooks/useNoteRoute';
 
 const DEFAULT_LEFT_PANE_WIDTH_PERCENT = 20; // w-1/5
 const MIN_LEFT_PANE_WIDTH_PERCENT = 15;
@@ -12,6 +13,15 @@ const MAX_LEFT_PANE_WIDTH_PERCENT = 30;
 
 const Notes = () => {
   const { selectedNote, handleUpdateNote } = useNotes();
+  const isOpeningNote = useNoteRoute();
+
+  if (isOpeningNote) {
+    return (
+      <div role="status" className="p-4 text-text-muted">
+        Opening note…
+      </div>
+    );
+  }
 
   return (
     <TwoPaneLayout

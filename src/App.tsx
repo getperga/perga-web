@@ -32,6 +32,7 @@ function App() {
               <Route index element={<Navigate to="/planner/" replace />} />
               <Route path="planner" element={<Planner />} />
               <Route path="notes" element={<Notes />} />
+              <Route path="notes/:noteId" element={<Notes />} />
               <Route path="settings" element={<Settings />}>
                 <Route index element={<Navigate to="/settings/general/" replace />} />
                 <Route path="general" element={<SettingsGeneral />} />
