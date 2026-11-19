@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.8] - 2026-11-19
+
+### Added
+
+- useNoteRoute hook and ability to open note by url
+
+### Changed
+
+- auth and browser sessions
+- github workflows
+- docker config
+- pwa config
+
 ## [1.2.7] - 2026-11-14
 
 ### Added
