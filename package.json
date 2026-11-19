@@ -36,7 +36,6 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/jest": "^30.0.0",
     "@types/lodash": "^4.17.17",
     "@types/node": "^22.19.15",
     "@types/react": "^19.0.10",
@@ -46,17 +45,24 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^15.15.0",
-    "jest": "^30.2.0",
-    "jest-environment-jsdom": "^30.2.0",
     "jsdom": "26.1.0",
     "prettier": "^3.3.3",
     "tailwindcss": "^4.1.3",
-    "ts-jest": "^29.4.6",
-    "ts-node": "^10.9.2",
     "typescript": "~5.7.2",
-    "typescript-eslint": "^8.24.1",
+    "typescript-eslint": "8.72.2",
     "vite": "^6.4.5",
-    "vite-plugin-pwa": "^1.2.0",
+    "vite-plugin-pwa": "2.0.0",
     "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": "24.22.3"
+  },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.1"
+    },
+    "workbox-build": {
+      "glob": "14.0.6"
+    }
   }
 }

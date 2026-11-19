@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 
 import { getConfig } from '@/config';
 import { Icon } from '@common/components/Icon/Icon';
@@ -16,6 +16,16 @@ export const Signin: React.FC = () => {
 
   const { signin, googleSignin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const requestedPath = (
+    location.state as { from?: { pathname?: unknown } } | null
+  )?.from?.pathname;
+  const destination =
+    typeof requestedPath === 'string' &&
+    requestedPath.startsWith('/') &&
+    !requestedPath.startsWith('//')
+      ? requestedPath
+      : '/planner/';
 
   useGoogleAuthInit(async (response) => {
     if (response.error) {
@@ -29,7 +39,7 @@ export const Signin: React.FC = () => {
 
     try {
       await googleSignin({ code: response.code });
-      navigate('/planner/');
+      void navigate(destination, { replace: true });
     } catch (err) {
       setError('Google Sign In failed');
       console.error(err);
@@ -45,7 +55,7 @@ export const Signin: React.FC = () => {
 
     try {
       await signin({ username, password });
-      navigate('/planner/');
+      void navigate(destination, { replace: true });
     } catch (err) {
       setError('Invalid username or password');
       console.error(err);

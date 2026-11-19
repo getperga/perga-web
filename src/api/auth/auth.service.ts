@@ -11,130 +11,187 @@ import type {
   UserSigninDTO,
   TokenDTO,
   UpdatePasswordDTO,
-  RefreshTokenDTO,
   GoogleSigninDTO,
 } from './auth.dto';
 
 const { API_BASE_URL } = getConfig();
 const AUTH_API_URL = `${API_BASE_URL}/auth`;
+const AUTH_LOCK = 'perga-browser-session';
 
-// API methods
-export const signup = (userData: UserSignupDTO) =>
-  axios.post<UserDTO>(`${AUTH_API_URL}/signup/`, userData);
+const browserAuth = axios.create({
+  baseURL: AUTH_API_URL,
+  withCredentials: true,
+  headers: { 'X-Perga-Session': 'browser' },
+  timeout: 10000,
+});
+let accessToken: string | null = null;
+let refreshInProgress: Promise<boolean> | null = null;
 
-export const signin = (userData: UserSigninDTO) =>
-  axios.post<TokenDTO>(`${AUTH_API_URL}/access_token_json/`, userData);
-
-export const googleSignin = (data: GoogleSigninDTO) =>
-  axios.post<TokenDTO>(`${AUTH_API_URL}/google/`, data);
-
-const refreshToken = (refreshTokenData: RefreshTokenDTO) =>
-  axios.post<TokenDTO>(`${AUTH_API_URL}/refresh_token/`, refreshTokenData);
-
-export const getUser = () => axios.get<UserDTO>(`${AUTH_API_URL}/user/`);
-
-export const updateUser = (userData: UserUpdateDTO) =>
-  axios.put<UserDTO>(`${AUTH_API_URL}/user/`, userData);
-
-export const updatePassword = (data: UpdatePasswordDTO) =>
-  axios.put<void>(`${AUTH_API_URL}/user/password/`, data);
-
-// Token methods
-export const storeToken = (token: TokenDTO) => {
-  Storage.set(StorageKeys.AuthToken, token.access_token);
-  Storage.set(StorageKeys.TokenType, token.token_type);
-  if (token.refresh_token) {
-    Storage.set(StorageKeys.RefreshToken, token.refresh_token);
-  }
-};
-
-const getToken = (): TokenDTO | null => {
-  const access_token = Storage.get(StorageKeys.AuthToken, null);
-  const token_type = Storage.get(StorageKeys.TokenType, null);
-  const refresh_token = Storage.get(StorageKeys.RefreshToken, null);
-
-  if (access_token && token_type) {
-    return { access_token, token_type, refresh_token: refresh_token || undefined };
-  }
-
-  return null;
-};
-
-export const removeToken = () => {
+function clearLegacyTokens(): void {
   Storage.remove(StorageKeys.AuthToken);
   Storage.remove(StorageKeys.TokenType);
   Storage.remove(StorageKeys.RefreshToken);
+}
+
+function withSessionLock<T>(action: () => Promise<T>): Promise<T> {
+  return navigator.locks ? navigator.locks.request(AUTH_LOCK, action) : action();
+}
+
+async function startSession(path: string, data: UserSigninDTO | GoogleSigninDTO): Promise<void> {
+  await withSessionLock(async () => {
+    const response = await browserAuth.post<TokenDTO>(path, data);
+    clearLegacyTokens();
+    accessToken = response.data.access_token;
+    Storage.set(StorageKeys.BrowserSession, crypto.randomUUID());
+  });
+}
+
+export const signup = (userData: UserSignupDTO) => {
+  return axios.post<UserDTO>(`${AUTH_API_URL}/signup/`, userData);
 };
 
-export const isAuthenticated = (): boolean => {
-  return Boolean(getToken());
+export const signin = (userData: UserSigninDTO) => {
+  return startSession('access_token_json/', userData);
 };
 
-// Configure axios to include the token in all requests
-export const setupAxiosInterceptors = () => {
-  axios.interceptors.request.use(
-    (config) => {
-      const token = getToken();
-      if (token) {
-        config.headers.Authorization = `Bearer ${token.access_token}`;
+export const googleSignin = (data: GoogleSigninDTO) => {
+  return startSession('google/', data);
+};
+
+export const getUser = () => {
+  return axios.get<UserDTO>(`${AUTH_API_URL}/user/`);
+};
+
+export const updateUser = (userData: UserUpdateDTO) => {
+  return axios.put<UserDTO>(`${AUTH_API_URL}/user/`, userData);
+};
+
+export const updatePassword = (data: UpdatePasswordDTO) => {
+  return axios.put<void>(`${AUTH_API_URL}/user/password/`, data);
+};
+
+function refreshBrowserSession(): Promise<boolean> {
+  if (refreshInProgress) {
+    return refreshInProgress;
+  }
+
+  const browserSessionState = Storage.get(StorageKeys.BrowserSession);
+  if (!browserSessionState) {
+    return Promise.resolve(false);
+  }
+
+  refreshInProgress = withSessionLock(async () => {
+    if (Storage.get(StorageKeys.BrowserSession) !== browserSessionState) {
+      return false;
+    }
+
+    const response = await browserAuth.post<TokenDTO>('refresh_token/');
+    if (Storage.get(StorageKeys.BrowserSession) !== browserSessionState) {
+      return false;
+    }
+
+    accessToken = response.data.access_token;
+    return true;
+  }).finally(() => {
+    refreshInProgress = null;
+  });
+
+  return refreshInProgress;
+}
+
+export async function restoreBrowserSession(): Promise<boolean> {
+  clearLegacyTokens();
+
+  try {
+    return await refreshBrowserSession();
+  } catch {
+    accessToken = null;
+    return false;
+  }
+}
+
+export async function endBrowserSession(): Promise<void> {
+  accessToken = null;
+  clearLegacyTokens();
+  Storage.remove(StorageKeys.BrowserSession);
+
+  try {
+    await withSessionLock(async () => {
+      if (!Storage.get(StorageKeys.BrowserSession)) {
+        await browserAuth.post('logout/');
       }
-      return config;
-    },
-    (error) => {
-      return Promise.reject(error);
-    },
-  );
+    });
+  } catch {
+    // the browser stays signed out even when it cannot reach the API
+  }
+}
 
-  // Add response interceptor to handle 401 errors
+function isPergaRequest(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const api = new URL(API_BASE_URL, window.location.origin);
+  const request = new URL(value, window.location.origin);
+  return api.origin === request.origin && request.pathname.startsWith(`${api.pathname}/`);
+}
+
+export function setupAxiosInterceptors(): void {
+  window.addEventListener('storage', (event) => {
+    if (event.key !== StorageKeys.BrowserSession) {
+      return;
+    }
+
+    accessToken = null;
+    window.location.reload();
+  });
+
+  axios.interceptors.request.use((config) => {
+    if (accessToken && isPergaRequest(config.url)) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+      Object.assign(config, { pergaSession: Storage.get(StorageKeys.BrowserSession) });
+    }
+    return config;
+  });
+
   axios.interceptors.response.use(
     (response) => {
       return response;
     },
     async (error) => {
-      const originalRequest = error.config;
+      const request = error.config;
+      const sessionState = request?.pergaSession;
 
-      // If the error is a 401 Unauthorized and we haven't tried to refresh the token yet
-      // Also, avoid attempting refresh for the refresh endpoint itself to prevent infinite loop
       if (
-        error.response?.status === 401 &&
-        !originalRequest?._retry &&
-        !originalRequest?.url?.includes('/auth/refresh_token/')
+        error.response?.status !== 401 ||
+        !sessionState ||
+        sessionState !== Storage.get(StorageKeys.BrowserSession) ||
+        request.pergaRetried ||
+        !isPergaRequest(request.url)
       ) {
-        originalRequest._retry = true;
-
-        const token = getToken();
-        if (token && token.refresh_token) {
-          try {
-            const response = await refreshToken({ refresh_token: token.refresh_token });
-            storeToken(response.data);
-
-            // Update the Authorization header and retry the original request
-            originalRequest.headers = {
-              ...originalRequest.headers,
-              Authorization: `Bearer ${response.data.access_token}`,
-            };
-            return axios(originalRequest);
-          } catch (refreshError) {
-            console.error('Failed to refresh token:', refreshError);
-            // If refresh token is invalid, log the user out
-            removeToken();
-            // Redirect to signin page only if we're not already there
-            if (!window.location.pathname.includes('/signin/')) {
-              window.location.href = '/signin/';
-            }
-            return Promise.reject(refreshError);
-          }
-        } else {
-          console.error('No refresh token available for request:', originalRequest.url);
-          // If no refresh token is available, log the user out
-          removeToken();
-          // Redirect to signin page only if we're not already there
-          if (!window.location.pathname.includes('/signin/')) {
-            window.location.href = '/signin/';
-          }
-        }
+        throw error;
       }
-      return Promise.reject(error);
+
+      request.pergaRetried = true;
+      try {
+        if (await refreshBrowserSession()) {
+          return axios(request);
+        }
+      } catch (refreshError) {
+        if (!axios.isAxiosError(refreshError) || refreshError.response?.status !== 401) {
+          throw refreshError;
+        }
+
+        if (Storage.get(StorageKeys.BrowserSession) !== sessionState) {
+          throw error;
+        }
+
+        accessToken = null;
+        Storage.remove(StorageKeys.BrowserSession);
+        window.location.assign('/signin/');
+      }
+
+      throw error;
     },
   );
-};
+}

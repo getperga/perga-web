@@ -397,4 +397,66 @@ describe('useNotesState note history', () => {
     expect(apiMocks.getNote).toHaveBeenCalledOnce();
     expect(result.current.selectedNote?.body).toBe(original.body);
   });
+
+  it('waits for an existing save before opening the selected note from a link', async () => {
+    const original = { ...notes[0], body: '<p>Original</p>' };
+    const saved = { ...original, body: '<p>Saved</p>' };
+    const refreshed = { ...saved, body: '<p>Fresh from the server</p>' };
+    const saveRequest = deferred<{ data: typeof saved }>();
+    localStorage.setItem(StorageKeys.NotesSelectedNoteId, '1');
+    apiMocks.getNote.mockResolvedValue({ data: original });
+    apiMocks.updateNote.mockReturnValueOnce(saveRequest.promise);
+    const { result } = renderHook(() => {
+      return useNotesState();
+    });
+    await waitFor(() => {
+      expect(result.current.selectedNote?.body).toBe(original.body);
+    });
+    apiMocks.getNote.mockClear().mockResolvedValue({ data: refreshed });
+
+    let save!: Promise<void>;
+    let opening!: Promise<void>;
+    act(() => {
+      save = result.current.handleUpdateNote(original.id, undefined, saved.body);
+      opening = result.current.openNote(original.id, new AbortController().signal);
+    });
+    expect(apiMocks.getNote).not.toHaveBeenCalled();
+
+    await act(async () => {
+      saveRequest.resolve({ data: saved });
+      await save;
+      await opening;
+    });
+
+    expect(apiMocks.getNote).toHaveBeenCalledOnce();
+    expect(result.current.selectedNote?.body).toBe(refreshed.body);
+  });
+
+  it('ignores an older content request after a link loads the selected note', async () => {
+    const original = { ...notes[0], body: '<p>Original</p>' };
+    const refreshed = { ...original, body: '<p>Fresh from the server</p>' };
+    const initialRequest = deferred<{ data: typeof original }>();
+    localStorage.setItem(StorageKeys.NotesSelectedNoteId, '1');
+    apiMocks.getNote
+      .mockReturnValueOnce(initialRequest.promise)
+      .mockResolvedValue({ data: refreshed });
+    const { result } = renderHook(() => {
+      return useNotesState();
+    });
+    await waitFor(() => {
+      expect(apiMocks.getNote).toHaveBeenCalledOnce();
+    });
+    const initialSignal = apiMocks.getNote.mock.calls[0][1] as AbortSignal;
+
+    await act(async () => {
+      await result.current.openNote(original.id, new AbortController().signal);
+    });
+    expect(initialSignal.aborted).toBe(true);
+    expect(result.current.selectedNote?.body).toBe(refreshed.body);
+
+    await act(async () => {
+      initialRequest.resolve({ data: original });
+    });
+    expect(result.current.selectedNote?.body).toBe(refreshed.body);
+  });
 });

@@ -4,6 +4,7 @@ export enum StorageKeys {
   AuthToken = 'auth:authToken',
   TokenType = 'auth:tokenType',
   RefreshToken = 'auth:refreshToken',
+  BrowserSession = 'auth:browserSession',
 
   // UI
   IsDarkThemeEnabled = 'ui:isDarkThemeEnabled',

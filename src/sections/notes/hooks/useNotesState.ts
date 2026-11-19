@@ -86,6 +86,7 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
     return { ids: noteIds, index };
   });
   const selectedNoteIdRef = useRef(selectedNoteId);
+  const selectedNoteRequest = useRef<AbortController | null>(null);
   const pendingNoteSaves = useRef(new Map<number, Promise<void>>());
   const notesHistoryRef = useRef(notesHistoryState);
   const [selectedNote, setSelectedNote] = useState<NoteDTO | null>(null);
@@ -120,6 +121,28 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
       setSelectedNoteId(noteId);
     },
     [saveNotesHistory],
+  );
+
+  const openNote = useCallback(
+    async (noteId: number, signal: AbortSignal) => {
+      const pendingSave = pendingNoteSaves.current.get(noteId);
+      if (pendingSave) {
+        await pendingSave;
+      }
+      if (signal.aborted) {
+        return;
+      }
+
+      const response = await getNote(noteId, signal);
+      if (signal.aborted) {
+        return;
+      }
+
+      selectedNoteRequest.current?.abort();
+      selectNote(noteId);
+      setSelectedNote(response.data);
+    },
+    [selectNote],
   );
 
   const openPreviousNote = useCallback(() => {
@@ -502,6 +525,7 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
     }
 
     const requestController = new AbortController();
+    selectedNoteRequest.current = requestController;
     const loadNote = async () => {
       const pendingSave = pendingNoteSaves.current.get(selectedNoteId);
       if (pendingSave) {
@@ -522,7 +546,12 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
       }
     });
 
-    return () => requestController.abort();
+    return () => {
+      requestController.abort();
+      if (selectedNoteRequest.current === requestController) {
+        selectedNoteRequest.current = null;
+      }
+    };
   }, [loadSelectedNote, selectedNoteId]);
 
   useEffect(() => {
@@ -686,5 +715,6 @@ export const useNotesState = ({ loadSelectedNote = true }: UseNotesStateOptions 
     trashItemIds,
     openNoteFromSearch,
     findQueryTrigger,
+    openNote,
   };
 };
