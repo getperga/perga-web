@@ -183,10 +183,12 @@ export function setupAxiosInterceptors(): void {
         }
 
         if (Storage.get(StorageKeys.BrowserSession) !== sessionState) {
-          accessToken = null;
-          Storage.remove(StorageKeys.BrowserSession);
-          window.location.assign('/signin/');
+          throw error;
         }
+
+        accessToken = null;
+        Storage.remove(StorageKeys.BrowserSession);
+        window.location.assign('/signin/');
       }
 
       throw error;

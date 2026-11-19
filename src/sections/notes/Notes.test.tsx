@@ -301,6 +301,35 @@ describe('opening a note from its URL', () => {
     expect(localStorage.getItem(StorageKeys.NotesSelectedNoteId)).toBe('43');
   });
 
+  it('shows fresh content when reopening the link to the selected note', async () => {
+    const router = createRouter('/notes/42/');
+    render(<RouterProvider router={router} />);
+    await waitFor(() => {
+      expect(screen.getByTestId('editor').textContent).toBe('Body 42');
+    });
+    apiMocks.getNote.mockImplementation(async (id: number) => {
+      return {
+        data: {
+          ...notes.find((note) => {
+            return note.id === id;
+          }),
+          body: 'Updated on the server',
+        },
+      };
+    });
+
+    await act(async () => {
+      await router.navigate('/notes/42/');
+    });
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/notes/');
+      expect(screen.getByTestId('editor').textContent).toBe('Updated on the server');
+    });
+    expect(localStorage.getItem(StorageKeys.NotesSelectedNoteId)).toBe('42');
+    expect(JSON.parse(localStorage.getItem(StorageKeys.NotesHistory) ?? '[]')).toEqual([1, 42]);
+  });
+
   it.each(['password', 'Google'])('preserves the link through %s sign-in', async (method) => {
     auth.isAuthenticated = false;
     const router = createRouter('/notes/42/');

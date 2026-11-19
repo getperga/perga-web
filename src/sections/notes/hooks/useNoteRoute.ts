@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { getNote } from '@api/notes';
 import { useToast } from '@common/contexts/toast/useToast';
 import { useNotes } from '@notes/context';
 
@@ -10,7 +9,7 @@ const NOTES_PATH = '/notes/';
 export const useNoteRoute = () => {
   const { noteId } = useParams<{ noteId: string }>();
   const navigate = useNavigate();
-  const { setSelectedNoteId } = useNotes();
+  const { openNote } = useNotes();
   const { showError } = useToast();
 
   useEffect(() => {
@@ -26,9 +25,9 @@ export const useNoteRoute = () => {
     }
 
     const controller = new AbortController();
-    const openNote = async () => {
+    const openLinkedNote = async () => {
       try {
-        await getNote(parsedNoteId, controller.signal);
+        await openNote(parsedNoteId, controller.signal);
       } catch {
         if (controller.signal.aborted) {
           return;
@@ -43,15 +42,14 @@ export const useNoteRoute = () => {
         return;
       }
 
-      setSelectedNoteId(parsedNoteId);
       void navigate(NOTES_PATH, { replace: true });
     };
 
-    void openNote();
+    void openLinkedNote();
     return () => {
       controller.abort();
     };
-  }, [noteId, navigate, setSelectedNoteId, showError]);
+  }, [noteId, navigate, openNote, showError]);
 
   return noteId !== undefined;
 };
