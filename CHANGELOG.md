@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.9] - 2026-11-22
+
+### Fixed
+
+- nginx version in dockerfile
+
 ## [1.2.8] - 2026-11-19
 
 ### Added
