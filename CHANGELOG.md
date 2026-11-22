@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.9] - 2026-11-22
+
+### Added
+
+- content security policy in nginx config
+
+### Fixed
+
+- nginx version in dockerfile
+- enable tests in ci
+
 ## [1.2.8] - 2026-11-19
 
 ### Added

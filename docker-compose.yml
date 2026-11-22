@@ -11,4 +11,6 @@ services:
       API_BASE_URL: ${API_BASE_URL}
       IS_SIGNUP_DISABLED: ${IS_SIGNUP_DISABLED}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      CSP_MODE: ${CSP_MODE:-report-only}
+      CSP_POLICY: ${CSP_POLICY:-}
     restart: unless-stopped

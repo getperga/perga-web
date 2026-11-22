@@ -30,10 +30,7 @@ RUN mkdir -p public
 RUN npm run build
 
 ## Runner stage
-FROM nginx:1.31.8-alpine3.24 AS runner
-
-# Install envsubst for runtime configuration generation
-RUN apk add --no-cache gettext
+FROM nginx:1.31.9-alpine3.24-slim@sha256:5bfced78d24d644270bedb0a9968697042e38d5c03fb6354603df025279c1cbe AS runner
 
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
